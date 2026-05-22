@@ -1,0 +1,275 @@
+{% extends 'base.html' %}
+
+{% block title %}Harmonogram - {{ project.name }}{% endblock %}
+
+{% block content %}
+
+<style>
+.day-toggle {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    background: #f1f3f5;
+    color: #495057;
+    border: 2px solid transparent;
+    transition: all 0.15s ease;
+    user-select: none;
+}
+.day-toggle:hover {
+    background: #e0e7ff;
+    color: #3b4fd8;
+}
+.day-toggle.active {
+    background: #0d6efd;
+    color: white;
+    border-color: #0a58ca;
+}
+.day-toggle[data-value="5"],
+.day-toggle[data-value="6"] {
+    color: #dc3545;
+}
+.day-toggle[data-value="5"].active,
+.day-toggle[data-value="6"].active {
+    background: #dc3545;
+    border-color: #b02a37;
+    color: white;
+}
+</style>
+
+<div class="d-flex" id="wrapper">
+
+    <div id="page-content-wrapper" class="w-100 bg-light p-4">
+        
+        <h2 class="fw-bold mb-4">Automatyzacja Skanowania</h2>
+
+        <div class="row">
+            <div class="col-md-5">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+                        <h5 class="card-title fw-bold mb-3">Dodaj nowe zadanie</h5>
+                        <p class="text-muted small mb-4">Wybierz, co system ma skanować, o której godzinie i w jakie dni.</p>
+
+                       <form method="POST" action="{{ url_for('add_task', project_id=project.id) }}" id="addTaskForm">
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-uppercase text-muted">Zakres</label>
+                                <select name="brand_id" id="brandSelect" class="form-select" onchange="toggleWarning()">
+                                    <option value="all">Wszystkie Produkty</option>
+                                    {% for brand in brands | sort(attribute='name') %}
+                                        <option value="{{ brand.id }}">Tylko marka: {{ brand.name }}</option>
+                                    {% endfor %}
+                                </select>
+                                <div id="allProductsWarning" class="form-text text-danger mt-2 fw-bold" style="display: block;">
+                                    <i class="bi bi-exclamation-triangle-fill me-1"></i> Uwaga: Skanowanie całego projektu może mocno obciążyć serwery proxy.
+                                </div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label for="runTime" class="form-label fw-bold small text-uppercase text-muted">Godzina startu</label>
+                                <input type="time" name="run_time" id="runTime" class="form-control" required value="08:00">
+                                <div class="form-text">Zadanie uruchomi się dokładnie o tej godzinie.</div>
+                            </div>
+
+                            <div class="mb-3">
+                                <label class="form-label fw-bold small text-uppercase text-muted">Częstotliwość</label>
+                                <div class="btn-group w-100" role="group">
+                                    <input type="radio" class="btn-check" name="frequency" id="freqDaily" value="daily" checked onchange="toggleDays(false)">
+                                    <label class="btn btn-outline-primary" for="freqDaily">Codziennie</label>
+
+                                    <input type="radio" class="btn-check" name="frequency" id="freqWeekly" value="weekly" onchange="toggleDays(true)">
+                                    <label class="btn btn-outline-primary" for="freqWeekly">Wybrane dni</label>
+                                </div>
+                            </div>
+
+<div class="mb-4" id="daysContainer" style="display: none;">
+    <label class="form-label fw-bold small mb-2 d-block text-muted text-uppercase">Dni tygodnia</label>
+    <div class="d-flex gap-2">
+        {% set day_labels = [('0','Pn'), ('1','Wt'), ('2','Śr'), ('3','Cz'), ('4','Pt'), ('5','Sb'), ('6','Nd')] %}
+        {% for val, label in day_labels %}
+        <div class="day-toggle" data-value="{{ val }}" onclick="toggleDay(this)">{{ label }}</div>
+        <input type="checkbox" name="days" value="{{ val }}" id="d{{ val }}" class="d-none" {% if val in ['5','6'] %}data-weekend="true"{% endif %}>
+        {% endfor %}
+    </div>
+    <div class="form-text mt-2">Kliknij dzień, aby go zaznaczyć.</div>
+</div>
+
+                            <button type="submit" class="btn btn-primary w-100 py-2">
+                                <i class="bi bi-plus-lg me-2"></i> Zaplanuj Skanowanie
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-7">
+                <div class="card shadow-sm border-0">
+                    <div class="card-body p-4">
+
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <h5 class="card-title fw-bold mb-0">Aktywne Zadania</h5>
+
+                            {% if tasks %}
+                                <form method="POST" action="{{ url_for('run_all_tasks', project_id=project.id) }}">
+                                    <button type="submit" class="btn btn-warning text-dark fw-bold btn-sm">
+                                        <i class="bi bi-play-circle-fill me-2"></i>Wymuś wszystkie
+                                    </button>
+                                </form>
+                            {% endif %}
+                        </div>
+
+                        {% if tasks %}
+                            <div class="table-responsive">
+                                <table class="table align-middle">
+                                    <thead class="table-light text-uppercase small text-muted">
+                                        <tr>
+                                            <th>Zakres</th>
+                                            <th>Harmonogram</th>
+                                            <th>Ostatnie uruchomienie</th>
+                                            <th class="text-end">Akcja</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for task in tasks %}
+                                        <tr>
+                                            <td>
+                                                {% if task.brand %}
+                                                    <span class="badge bg-dark">{{ task.brand.name }}</span>
+                                                {% else %}
+                                                    <span class="badge bg-primary">Cały Projekt</span>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                <div class="d-flex flex-column">
+                                                    <span class="fw-bold fs-5 text-dark">
+                                                        <i class="bi bi-clock me-1 text-muted small"></i>{{ task.run_time }}
+                                                    </span>
+
+                                                    <div class="mt-1">
+                                                        {% if task.frequency == 'daily' %}
+                                                            <span class="badge bg-success-subtle text-success border border-success-subtle">Codziennie</span>
+                                                        {% else %}
+                                                            {% set day_names = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'Sb', 'Nd'] %}
+                                                            {% if task.days_of_week %}
+                                                                {% for d in task.days_of_week.split(',') %}
+                                                                    <span class="badge bg-light text-dark border me-1">{{ day_names[d|int] }}</span>
+                                                                {% endfor %}
+                                                            {% else %}
+                                                                <span class="text-muted small">Brak dni?</span>
+                                                            {% endif %}
+                                                        {% endif %}
+                                                    </div>
+                                                </div>
+                                            </td>
+                                            <td class="small text-muted">
+                                                {% if task.last_run_date %}
+                                                    {{ task.last_run_date }}
+                                                {% else %}
+                                                    <span class="fst-italic text-secondary opacity-50">Oczekuje...</span>
+                                                {% endif %}
+                                            </td>
+                                            <td class="text-end">
+                                                <div class="d-flex gap-2 justify-content-end">
+                                                    <form method="POST" action="{{ url_for('run_single_task', project_id=project.id, task_id=task.id) }}">
+                                                        <button type="submit" class="btn btn-sm btn-outline-success" title="Uruchom teraz">
+                                                            <i class="bi bi-play-fill"></i>
+                                                        </button>
+                                                    </form>
+
+                                                    <form method="POST" action="{{ url_for('delete_task', project_id=project.id, task_id=task.id) }}" onsubmit="return confirm('Na pewno usunąć to zadanie?');">
+                                                        <button type="submit" class="btn btn-sm btn-outline-danger border-0" title="Usuń zadanie">
+                                                            <i class="bi bi-trash"></i>
+                                                        </button>
+                                                    </form>
+                                                </div>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <div class="text-center py-5 text-muted bg-light rounded-3 mt-3">
+                                <i class="bi bi-calendar-x display-4 mb-3 opacity-50"></i>
+                                <p class="mb-0">Brak zaplanowanych zadań.</p>
+                                <small>Dodaj pierwsze zadanie korzystając z formularza po lewej.</small>
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function toggleDays(show) {
+    const container = document.getElementById('daysContainer');
+    if (container) {
+        container.style.display = show ? 'block' : 'none';
+    }
+}
+
+function toggleDay(el) {
+    const val = el.dataset.value;
+    const checkbox = document.getElementById('d' + val);
+    el.classList.toggle('active');
+    checkbox.checked = el.classList.contains('active');
+}
+
+// Funkcja pokazująca/ukrywająca czerwony tekst ostrzegawczy
+function toggleWarning() {
+    const select = document.getElementById('brandSelect');
+    const warning = document.getElementById('allProductsWarning');
+
+    if (select && warning) {
+        if (select.value === 'all') {
+            warning.style.display = 'block';
+        } else {
+            warning.style.display = 'none';
+        }
+    }
+}
+
+// Zabezpieczenie przed wysłaniem formularza
+const form = document.getElementById('addTaskForm');
+if (form) {
+    form.addEventListener('submit', function(event) {
+        const select = document.getElementById('brandSelect');
+        if (select && select.value === 'all') {
+            const confirmed = confirm("⚠️ OSTRZEŻENIE ⚠️\n\nCzy na pewno chcesz zaplanować zadanie dla WSZYSTKICH produktów?\n\nSpowoduje to sprawdzenie każdego linku w projekcie, co generuje duże obciążenie i zwiększa ryzyko czasowego zablokowania proxy.\n\nZaleca się dzielenie zadań na konkretne marki. Kliknij OK, aby kontynuować, lub Anuluj, aby zmienić wybór.");
+
+            if (!confirmed) {
+                event.preventDefault(); // Zatrzymuje wysłanie formularza
+            }
+        }
+    });
+}
+
+// Uruchomienie sprawdzania ostrzeżenia przy załadowaniu strony
+document.addEventListener("DOMContentLoaded", function() {
+    toggleWarning();
+});
+
+// Wymuszenie otwarcia wyboru godziny po kliknięciu w całe pole
+const runTimeInput = document.getElementById('runTime');
+if (runTimeInput) {
+    runTimeInput.addEventListener('click', function(event) {
+        // Sprawdzamy, czy przeglądarka obsługuje tę metodę (większość nowych obsługuje)
+        if ('showPicker' in HTMLInputElement.prototype) {
+            try {
+                this.showPicker();
+            } catch (error) {
+                // Ignorujemy błędy (np. jeśli picker jest już otwarty)
+            }
+        }
+    });
+}
+</script>
+
+{% endblock %}

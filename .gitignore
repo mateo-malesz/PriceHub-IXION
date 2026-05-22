@@ -24,3 +24,6 @@ __pycache__/
 # Inne foldery
 backup/
 demo/
+
+# Baza
+*.db*
