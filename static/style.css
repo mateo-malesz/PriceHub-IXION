@@ -1,3 +1,60 @@
+:root {
+    /* Nadpisanie globalnego koloru "primary" na pomarańczowy */
+    --bs-primary: #fd7e14;
+    --bs-primary-rgb: 253, 126, 20;
+    --bs-link-color: #fd7e14;
+    --bs-link-hover-color: #e36a0f;
+}
+
+/* Wymuszenie spójnego zachowania przycisków btn-primary */
+.btn-primary {
+    --bs-btn-bg: #fd7e14;
+    --bs-btn-border-color: #fd7e14;
+    --bs-btn-hover-bg: #e36a0f;
+    --bs-btn-hover-border-color: #d6640e;
+    --bs-btn-active-bg: #d6640e;
+    --bs-btn-active-border-color: #c95d0d;
+    --bs-btn-disabled-bg: #fd7e14;
+    --bs-btn-disabled-border-color: #fd7e14;
+}
+
+/* Nadpisanie przycisków z obramowaniem (na liście projektów) */
+.btn-outline-primary {
+    --bs-btn-color: #fd7e14;
+    --bs-btn-border-color: #fd7e14;
+    --bs-btn-hover-color: #fff;
+    --bs-btn-hover-bg: #fd7e14;
+    --bs-btn-hover-border-color: #fd7e14;
+    --bs-btn-focus-shadow-rgb: 253, 126, 20;
+    --bs-btn-active-color: #fff;
+    --bs-btn-active-bg: #fd7e14;
+    --bs-btn-active-border-color: #fd7e14;
+}
+
+/* Nadpisanie koloru tekstu i ikon (walizki, aktywne menu boczne) */
+.text-primary {
+    color: #fd7e14 !important;
+}
+
+/* Opcjonalnie: poprawa koloru w alertach z linkami */
+.alert-primary {
+    --bs-alert-color: #8a4106;
+    --bs-alert-bg: #ffe8d6;
+    --bs-alert-border-color: #fdc192;
+}
+
+/* Nadpisanie aktywnego elementu w menu bocznym (nav-pills) */
+.nav-pills .nav-link.active,
+.nav-pills .show>.nav-link {
+    background-color: #fd7e14 !important;
+    color: #ffffff !important;
+}
+
+/* Nasza własna klasa dla ikony logo */
+.brand-accent {
+    color: var(--bs-primary) !important;
+}
+
 body {
     overflow: hidden;
 }

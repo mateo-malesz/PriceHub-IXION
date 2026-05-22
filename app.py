@@ -8,7 +8,6 @@ from flask import make_response
 import xml.etree.ElementTree as ET
 from flask_apscheduler import APScheduler
 from datetime import datetime, date, timezone
-from scraper import get_current_price, init_batch_session, close_batch_session
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
 from sote_integration import fetch_sales_for_date

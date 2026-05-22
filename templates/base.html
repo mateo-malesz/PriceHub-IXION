@@ -4,16 +4,18 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{% block title %}PriceMonitor{% endblock %}</title>
-    <meta name="apple-mobile-web-app-title" content="PriceMonitor" />
-    <link rel="icon" type="image/png" sizes="96x96" href="{{ url_for('static', filename='favicon/favicon-96x96.png') }}">
+    <title>{% block title %}PriceHub{% endblock %}</title>
+    <meta name="apple-mobile-web-app-title" content="PriceHub" />
+    <link rel="icon" type="image/png" sizes="96x96"
+        href="{{ url_for('static', filename='favicon/favicon-96x96.png') }}">
     <link rel="icon" type="image/svg+xml" href="{{ url_for('static', filename='favicon/favicon.svg') }}">
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon/favicon.ico') }}">
-    <link rel="apple-touch-icon" sizes="180x180" href="{{ url_for('static', filename='favicon/apple-touch-icon.png') }}">
+    <link rel="apple-touch-icon" sizes="180x180"
+        href="{{ url_for('static', filename='favicon/apple-touch-icon.png') }}">
     <link rel="manifest" href="{{ url_for('static', filename='favicon/site.webmanifest') }}">
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/css/bootstrap.min.css" rel="stylesheet"
         integrity="sha384-sRIl4kxILFvY47J16cr9ZwB07vP4J8+LH7qKQnuqkuIAvNWLzeN8tE5YBujZqJLB" crossorigin="anonymous">
-<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css"
         integrity="sha384-tViUnnbYAV00FLIhhi3v/dWt3Jxw4gZQcNoSCxCIFNJVCx7/D55/wXsrNIRANwdD" crossorigin="anonymous">
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.8/dist/js/bootstrap.bundle.min.js"
@@ -22,127 +24,136 @@
 </head>
 
 <body>
-{% block layout %}
-    <nav class="navbar navbar-light bg-white border-bottom d-md-none px-3 py-2 shadow-sm d-flex justify-content-between align-items-center">
-        <button class="navbar-toggler border-0 px-0" type="button" data-bs-toggle="offcanvas" data-bs-target="#sidebar-wrapper">
+    {% block layout %}
+    <nav
+        class="navbar navbar-light bg-white border-bottom d-md-none px-3 py-2 shadow-sm d-flex justify-content-between align-items-center">
+        <button class="navbar-toggler border-0 px-0" type="button" data-bs-toggle="offcanvas"
+            data-bs-target="#sidebar-wrapper">
             <span class="navbar-toggler-icon"></span>
         </button>
         <span class="navbar-brand fw-bold mb-0 h1 mx-auto text-center">
-            <i class="bi bi-tag-fill me-2"></i>PriceMonitor
+            <i class="bi bi-lightning-charge-fill fs-4 me-2"></i>PriceHub
         </span>
-        <div style="width: 30px;"></div>
+        <div style=" width: 30px;"></div>
     </nav>
 
     <div class="d-flex">
-        <div id="sidebar-wrapper" class="offcanvas-md offcanvas-start d-flex flex-column flex-shrink-0 p-3 bg-white" tabindex="-1"
-             style="width: 280px; min-height: 100vh; border-right: 1px solid #dee2e6; overflow-y: auto;">
+        <div id="sidebar-wrapper" class="offcanvas-md offcanvas-start d-flex flex-column flex-shrink-0 p-3 bg-white"
+            tabindex="-1" style="width: 280px; min-height: 100vh; border-right: 1px solid #dee2e6; overflow-y: auto;">
 
-            <div class="offcanvas-header d-md-none border-bottom px-0 pb-3 mb-3 d-flex justify-content-start align-items-center">
-                <button type="button" class="btn-close m-0 me-3" data-bs-dismiss="offcanvas" data-bs-target="#sidebar-wrapper"></button>
+            <div
+                class="offcanvas-header d-md-none border-bottom px-0 pb-3 mb-3 d-flex justify-content-start align-items-center">
+                <button type="button" class="btn-close m-0 me-3" data-bs-dismiss="offcanvas"
+                    data-bs-target="#sidebar-wrapper"></button>
                 <h5 class="offcanvas-title fw-bold mb-0 text-center flex-grow-1" style="padding-right: 2rem;">Menu</h5>
             </div>
             <div class="mb-auto w-100">
 
                 {% if project %}
-                    <a href="{{ url_for('project_overview', project_id=project.id) }}"
-                        class="d-flex align-items-center mb-3 link-body-emphasis text-decoration-none">
-                        <i class="bi bi-tag-fill fs-4 me-2"></i>
-                        <span class="fs-4 fw-bold">PriceMonitor</span>
-                    </a>
+                <a href="{{ url_for('project_overview', project_id=project.id) }}"
+                    class="d-flex align-items-center mb-3 link-body-emphasis text-decoration-none">
+                    <i class="bi bi-lightning-charge-fill fs-4 me-2"></i>
+                    <span class="fs-4 fw-bold">PriceHub</span>
+                </a>
 
-                    <div class="text-muted small text-uppercase fw-bold mb-3 px-1">{{ project.name }}</div>
+                <div class="text-muted small text-uppercase fw-bold mb-3 px-1">{{ project.name }}</div>
 
-                    <ul class="nav nav-pills flex-column">
-<li class="nav-item">
-    <a href="{{ url_for('project_overview', project_id=project.id) }}"
-       class="nav-link {% if request.endpoint == 'project_overview' %}active{% else %}link-body-emphasis{% endif %}" aria-current="page">
-        <i class="bi bi-house-door me-2"></i>
-        Panel główny
-    </a>
-</li>
-                        <li>
-                            <a href="{{ url_for('project_dashboard', project_id=project.id) }}"
-                               class="nav-link {% if request.endpoint == 'project_dashboard' or request.endpoint == 'product_details' %}active{% else %}link-body-emphasis{% endif %}">
-                                <i class="bi bi-box-seam me-2"></i> Produkty
-                            </a>
-                        </li>
-<li class="nav-item">
-    <a href="#analysisSubmenu" data-bs-toggle="collapse"
-       class="nav-link link-body-emphasis d-flex align-items-center"
-aria-expanded="{% if request.endpoint in ['project_analysis', 'project_margin', 'project_margin_by_brand', 'competitors_list', 'competitor_analysis', 'sales_report', 'compare_projects', 'brand_monitoring'] %}true{% else %}false{% endif %}">        <i class="bi bi-graph-up-arrow me-2"></i>
-        Analiza
-        <i class="bi bi-chevron-down ms-auto" style="font-size: 0.8rem; transition: transform 0.2s;"></i>
-    </a>
-<div class="collapse {% if request.endpoint in ['project_analysis', 'project_margin', 'project_margin_by_brand', 'competitors_list', 'competitor_analysis', 'sales_report', 'compare_projects', 'brand_monitoring'] %}show{% endif %}" id="analysisSubmenu">        <ul class="nav flex-column ms-3 mt-1 pb-2" style="font-size: 0.9rem;">
-            <li>
-                <a href="{{ url_for('project_analysis', project_id=project.id) }}"
-                   class="nav-link {% if request.endpoint == 'project_analysis' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                    <i class="bi bi-bullseye me-2"></i> Pozycja rynkowa
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('competitors_list', project_id=project.id) }}"
-                   class="nav-link {% if request.endpoint in ['competitors_list', 'competitor_analysis'] %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                    <i class="bi bi-incognito me-2"></i> Baza Konkurentów
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('project_margin', project_id=project.id) }}"
-                   class="nav-link {% if request.endpoint == 'project_margin' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                    <i class="bi bi-cash-stack me-2"></i> Rentowność i Marża
-                </a>
-            </li>
-            <li>
-                <a href="{{ url_for('project_margin_by_brand', project_id=project.id) }}"
-                   class="nav-link {% if request.endpoint == 'project_margin_by_brand' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                    <i class="bi bi-bar-chart-steps me-2"></i> Marża wg Producenta
-                </a>
-            </li>
-<li>
-                <a href="{{ url_for('brand_monitoring', project_id=project.id) }}"
-                   class="nav-link {% if request.endpoint == 'brand_monitoring' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                    <i class="bi bi-eye me-2"></i> Monitoring cen Marki
-                </a>
-            </li>
-        <li>
-                <a href="{{ url_for('sales_report', project_id=project.id) }}"
-                   class="nav-link {% if request.endpoint == 'sales_report' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                    <i class="bi bi-cart-check me-2"></i> Raport Sprzedaży
-                </a>
-            </li>
-        <li>
-                <a href="{{ url_for('compare_projects', project_id=project.id) }}"
-                   class="nav-link {% if request.endpoint == 'compare_projects' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                    <i class="bi bi-arrow-left-right me-2"></i> Audyt Projektów
-                </a>
-            </li>
-        </ul>
-    </div>
-</li>
-<li>
-        <a href="{{ url_for('project_reports', project_id=project.id) }}"
-           class="nav-link {% if request.endpoint == 'project_reports' %}active{% else %}link-body-emphasis{% endif %}">
-            <i class="bi bi-bar-chart me-2"></i>
-            Raporty
-        </a>
-    </li>
-                        <li>
-                            <a href="{{ url_for('project_scheduler', project_id=project.id) }}"
-                               class="nav-link {% if request.endpoint == 'project_scheduler' %}active{% else %}link-body-emphasis{% endif %}">
-                                <i class="bi bi-clock-history me-2"></i> Harmonogram
-                            </a>
-                        </li>
-                    </ul>
+                <ul class="nav nav-pills flex-column">
+                    <li class="nav-item">
+                        <a href="{{ url_for('project_overview', project_id=project.id) }}"
+                            class="nav-link {% if request.endpoint == 'project_overview' %}active{% else %}link-body-emphasis{% endif %}"
+                            aria-current="page">
+                            <i class="bi bi-house-door me-2"></i>
+                            Panel główny
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('project_dashboard', project_id=project.id) }}"
+                            class="nav-link {% if request.endpoint == 'project_dashboard' or request.endpoint == 'product_details' %}active{% else %}link-body-emphasis{% endif %}">
+                            <i class="bi bi-box-seam me-2"></i> Produkty
+                        </a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="#analysisSubmenu" data-bs-toggle="collapse"
+                            class="nav-link link-body-emphasis d-flex align-items-center"
+                            aria-expanded="{% if request.endpoint in ['project_analysis', 'project_margin', 'project_margin_by_brand', 'competitors_list', 'competitor_analysis', 'sales_report', 'compare_projects', 'brand_monitoring'] %}true{% else %}false{% endif %}">
+                            <i class="bi bi-graph-up-arrow me-2"></i>
+                            Analiza
+                            <i class="bi bi-chevron-down ms-auto"
+                                style="font-size: 0.8rem; transition: transform 0.2s;"></i>
+                        </a>
+                        <div class="collapse {% if request.endpoint in ['project_analysis', 'project_margin', 'project_margin_by_brand', 'competitors_list', 'competitor_analysis', 'sales_report', 'compare_projects', 'brand_monitoring'] %}show{% endif %}"
+                            id="analysisSubmenu">
+                            <ul class="nav flex-column ms-3 mt-1 pb-2" style="font-size: 0.9rem;">
+                                <li>
+                                    <a href="{{ url_for('project_analysis', project_id=project.id) }}"
+                                        class="nav-link {% if request.endpoint == 'project_analysis' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
+                                        <i class="bi bi-bullseye me-2"></i> Pozycja rynkowa
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('competitors_list', project_id=project.id) }}"
+                                        class="nav-link {% if request.endpoint in ['competitors_list', 'competitor_analysis'] %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
+                                        <i class="bi bi-incognito me-2"></i> Baza Konkurentów
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('project_margin', project_id=project.id) }}"
+                                        class="nav-link {% if request.endpoint == 'project_margin' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
+                                        <i class="bi bi-cash-stack me-2"></i> Rentowność i Marża
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('project_margin_by_brand', project_id=project.id) }}"
+                                        class="nav-link {% if request.endpoint == 'project_margin_by_brand' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
+                                        <i class="bi bi-bar-chart-steps me-2"></i> Marża wg Producenta
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('brand_monitoring', project_id=project.id) }}"
+                                        class="nav-link {% if request.endpoint == 'brand_monitoring' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
+                                        <i class="bi bi-eye me-2"></i> Monitoring cen Marki
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('sales_report', project_id=project.id) }}"
+                                        class="nav-link {% if request.endpoint == 'sales_report' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
+                                        <i class="bi bi-cart-check me-2"></i> Raport Sprzedaży
+                                    </a>
+                                </li>
+                                <li>
+                                    <a href="{{ url_for('compare_projects', project_id=project.id) }}"
+                                        class="nav-link {% if request.endpoint == 'compare_projects' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
+                                        <i class="bi bi-arrow-left-right me-2"></i> Audyt Projektów
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('project_reports', project_id=project.id) }}"
+                            class="nav-link {% if request.endpoint == 'project_reports' %}active{% else %}link-body-emphasis{% endif %}">
+                            <i class="bi bi-bar-chart me-2"></i>
+                            Raporty
+                        </a>
+                    </li>
+                    <li>
+                        <a href="{{ url_for('project_scheduler', project_id=project.id) }}"
+                            class="nav-link {% if request.endpoint == 'project_scheduler' %}active{% else %}link-body-emphasis{% endif %}">
+                            <i class="bi bi-clock-history me-2"></i> Harmonogram
+                        </a>
+                    </li>
+                </ul>
 
                 {% else %}
-                    <a href="/" class="d-flex align-items-center mb-3 link-body-emphasis text-decoration-none">
-                        <i class="bi bi-tag-fill fs-4 me-2"></i>
-                        <span class="fs-4 fw-bold">Moja Aplikacja</span>
-                    </a>
-                    <div class="alert alert-light small text-center border">
-                        <i class="bi bi-arrow-down mb-2 d-block"></i>
-                        Wybierz projekt z menu na dole
-                    </div>
+                <a href="/" class="d-flex align-items-center mb-3 link-body-emphasis text-decoration-none">
+                    <i class="bi bi-tag-fill fs-4 me-2"></i>
+                    <span class="fs-4 fw-bold">Moja Aplikacja</span>
+                </a>
+                <div class="alert alert-light small text-center border">
+                    <i class="bi bi-arrow-down mb-2 d-block"></i>
+                    Wybierz projekt z menu na dole
+                </div>
                 {% endif %}
             </div>
 
@@ -150,43 +161,49 @@ aria-expanded="{% if request.endpoint in ['project_analysis', 'project_margin', 
                 <hr class="my-3">
 
                 <div class="dropdown">
-                    <a href="#" class="d-flex align-items-center link-body-emphasis text-decoration-none dropdown-toggle"
+                    <a href="#"
+                        class="d-flex align-items-center link-body-emphasis text-decoration-none dropdown-toggle"
                         data-bs-toggle="dropdown" aria-expanded="false">
-                        <img src="{{ current_user.image_file }}" alt="" width="32" height="32" class="rounded-circle me-2 border">
+                        <img src="{{ current_user.image_file }}" alt="" width="32" height="32"
+                            class="rounded-circle me-2 border">
                         <strong class="text-truncate">
-                          {% if current_user.is_authenticated %}
+                            {% if current_user.is_authenticated %}
                             {{ current_user.email }}
-                          {% else %}
+                            {% else %}
                             Gość
-                          {% endif %}
+                            {% endif %}
                         </strong>
                     </a>
                     <ul class="dropdown-menu text-small shadow">
                         <li><a class="dropdown-item" href="{{ url_for('projects') }}">Moje projekty</a></li>
                         <li><a class="dropdown-item" href="{{ url_for('scraper_debugger') }}">Scraper Debugger</a></li>
-                        <li><hr class="dropdown-divider"></li>
+                        <li>
+                            <hr class="dropdown-divider">
+                        </li>
                         <li><a class="dropdown-item" href="{{ url_for('logout') }}">Wyloguj się</a></li>
                     </ul>
                 </div>
             </div>
- </div>
+        </div>
 
         <div id="page-content-wrapper" class="w-100 p-4 bg-light">
             {% with messages = get_flashed_messages(with_categories=true) %}
-                {% if messages %}
-                    {% for category, message in messages %}
-                        <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show" role="alert">
-                            {{ message }}
-                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
-                        </div>
-                    {% endfor %}
-                {% endif %}
+            {% if messages %}
+            {% for category, message in messages %}
+            <div class="alert alert-{{ category if category != 'error' else 'danger' }} alert-dismissible fade show"
+                role="alert">
+                {{ message }}
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endfor %}
+            {% endif %}
             {% endwith %}
 
             {% block content %}{% endblock %}
 
         </div>
     </div>
-{% endblock %}
+    {% endblock %}
 </body>
+
 </html>
