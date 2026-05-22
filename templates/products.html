@@ -1,587 +1,164 @@
 {% extends 'base.html' %}
 
-{% block title %}Produkty - {{ project.name }}{% endblock %}
+{% block title %}Cenniki i Marże - {{ project.name }}{% endblock %}
 
 {% block content %}
+<script src="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/dist/ag-grid-community.min.js"></script>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/styles/ag-grid.css" />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ag-grid-community@31.3.2/styles/ag-theme-alpine.css" />
 
-{# --- MAKRO DO GENEROWANIA LINKÓW SORTOWANIA --- #}
-{% macro sort_link(column_key, label) %}
-    {% set current_sort = current_filters.sort %}
-    {% set current_order = current_filters.order %}
-    {% set new_order = 'asc' %}
-    {% set icon_class = 'bi bi-arrow-down-up ms-1 small text-muted' %}
-
-    {% if current_sort == column_key %}
-        {% if current_order == 'asc' %}
-            {% set new_order = 'desc' %}
-            {% set icon_class = 'bi bi-arrow-up ms-1 small text-dark' %}
-        {% else %}
-            {% set new_order = 'asc' %}
-            {% set icon_class = 'bi bi-arrow-down ms-1 small text-dark' %}
-        {% endif %}
-    {% endif %}
-
-    <a href="{{ url_for('project_dashboard', project_id=project.id, sort=column_key, order=new_order, q=current_filters.q, brand=current_filters.brand, availability=current_filters.availability, filter=current_filters.filter, archived=current_filters.archived) }}"
-       class="text-decoration-none text-dark fw-bold d-block" style="font-size: 0.9rem;">
-        {{ label }} <i class="{{ icon_class }}" style="font-size: 0.7rem;"></i>
-    </a>
-{% endmacro %}
-
-            <div class="d-flex justify-content-between align-items-center mb-4">
-    <div>
-        <h2 class="fw-bold">Produkty</h2>
-        <p class="text-muted">Znaleziono {{ pagination.total }} produktów</p>
-    </div>
-
-    <div class="d-flex align-items-start gap-2">
-
-        {% if project.product_feed_url %}
-            <div class="d-flex flex-column align-items-center">
-                <form method="POST" action="{{ url_for('sync_products', project_id=project.id) }}" class="m-0">
-                    <button type="submit" class="btn btn-outline-success" title="Pobierz produkty z pliku XML">
-                        <i class="bi bi-arrow-repeat"></i> Synchronizuj
-                    </button>
-                </form>
-                {% if project.last_feed_sync %}
-                    <div class="text-muted mt-1 text-nowrap local-time" data-utc="{{ project.last_feed_sync.isoformat() }}" style="font-size: 0.65rem;">
-                        {{ project.last_feed_sync.strftime('%Y-%m-%d %H:%M') }} UTC
-                    </div>
-                {% endif %}
-            </div>
-        {% endif %}
-
-        <div class="btn-group">
-            <button type="button" class="btn btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">
-                Zarządzaj
-            </button>
-            <ul class="dropdown-menu shadow-sm">
-                <li>
-                    <a class="dropdown-item" href="{{ url_for('import_links', project_id=project.id) }}">
-                        <i class="bi bi-file-earmark-spreadsheet me-2"></i>Importuj Linki (CSV)
-                    </a>
-                </li>
-                <li>
-    <a class="dropdown-item" href="{{ url_for('import_purchase_prices_view', project_id=project.id) }}">
-        <i class="bi bi-cash-coin me-2"></i>Importuj Ceny Zakupu (XLSX/CSV)
-    </a>
-</li>
-<li>
-        <form action="{{ url_for('force_sales_sync', project_id=project.id) }}" method="POST" class="m-0">
-            <button type="submit" class="dropdown-item">
-                <i class="bi bi-cloud-download me-2"></i>Skanuj Sprzedaż (SOTE)
-            </button>
-        </form>
-    </li>
-                <li><hr class="dropdown-divider"></li>
-                <li>
-                    <form method="POST" action="{{ url_for('delete_project', project_id=project.id) }}" onsubmit="return confirm('Czy na pewno chcesz usunąć ten projekt? Tej operacji nie można cofnąć.');" class="d-inline m-0">
-                        <button type="submit" class="dropdown-item text-danger">
-                            <i class="bi bi-trash me-2"></i>Usuń Projekt
-                        </button>
-                    </form>
-                </li>
-            </ul>
-        </div>
-
-        <button type="button" class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#addProductModal">
-            <i class="bi bi-plus-lg"></i> Dodaj Produkt
-        </button>
-
-    </div>
-</div>
-
-<!-- ZAKŁADKI: AKTYWNE / ARCHIWUM -->
-<div class="d-flex mb-3">
-    <ul class="nav nav-pills bg-light border p-1 rounded-3 shadow-sm">
-        <li class="nav-item">
-            <a class="nav-link rounded-2 py-1 px-4 {% if not current_filters.archived %}active bg-white text-dark fw-bold shadow-sm border{% else %}text-muted border border-transparent{% endif %}"
-               href="{{ url_for('project_dashboard', project_id=project.id, q=current_filters.q, brand=current_filters.brand, availability=current_filters.availability, filter=current_filters.filter) }}">
-               <i class="bi bi-box-seam me-2 {% if not current_filters.archived %}text-primary{% endif %}"></i> Aktywne
-            </a>
-        </li>
-        <li class="nav-item">
-            <a class="nav-link rounded-2 py-1 px-4 {% if current_filters.archived %}active bg-white text-dark fw-bold shadow-sm border{% else %}text-muted border border-transparent{% endif %}"
-               href="{{ url_for('project_dashboard', project_id=project.id, archived='true', q=current_filters.q, brand=current_filters.brand, availability=current_filters.availability, filter=current_filters.filter) }}">
-               <i class="bi bi-archive me-2 {% if current_filters.archived %}text-primary{% endif %}"></i> Archiwum
-               <span class="badge {% if current_filters.archived %}bg-primary{% else %}bg-secondary{% endif %} rounded-pill ms-2">{{ stats.archived_count }}</span>
-            </a>
-        </li>
-    </ul>
-</div>
-
-{% if current_filters.filter == 'errors' %}
-    <div class="alert alert-danger d-flex justify-content-between align-items-center shadow-sm mt-3">
+<div class="container-fluid py-3">
+    <div class="d-flex justify-content-between align-items-center mb-4 bg-white p-3 rounded shadow-sm border">
         <div>
-            <i class="bi bi-exclamation-octagon-fill me-2"></i>
-            <strong>Tryb naprawczy:</strong> Wyświetlasz tylko produkty z uszkodzonymi linkami (404 / Brak ceny).
+            <h2 class="fw-bold mb-1 text-dark">{{ project.name }}</h2>
+            <p class="text-muted small mb-0">Centrala zarządzania marżą i cennikami dynamicznymi</p>
         </div>
-        <a href="{{ url_for('project_dashboard', project_id=project.id) }}" class="btn btn-sm btn-outline-danger bg-white">
-            <i class="bi bi-x-lg"></i> Pokaż Wszystkie
-        </a>
+        <div class="d-flex gap-2">
+            <a href="{{ url_for('sync_sellassist') }}" class="btn btn-outline-dark fw-bold">
+                <i class="bi bi-arrow-repeat me-2"></i>Pobierz produkty
+            </a>
+            <a href="{{ url_for('sync_bundles', project_id=project.id) }}" class="btn btn-outline-dark fw-bold">
+                <i class="bi bi-boxes me-2"></i>Synchro Zestawów
+            </a>
+            <a href="#" class="btn btn-primary fw-bold px-4">
+                <i class="bi bi-file-earmark-excel me-2"></i>Importuj Koszty (Excel)
+            </a>
+        </div>
     </div>
-{% endif %}
 
-<div class="card shadow-sm border-0 mb-4">
-    <div class="card-body p-3">
-        <form method="GET" action="{{ url_for('project_dashboard', project_id=project.id) }}" class="row g-3 align-items-center">
-
-            {% if current_filters.archived %}
-                <input type="hidden" name="archived" value="true">
-            {% endif %}
-
-            <!-- Zachowujemy sortowanie przy filtrowaniu -->
-            <input type="hidden" name="sort" value="{{ current_filters.sort }}">
-            <input type="hidden" name="order" value="{{ current_filters.order }}">
-
-            <div class="col-md-4 col-lg-3">
-                <div class="input-group">
-                    <span class="input-group-text bg-white text-muted border-end-0"><i class="bi bi-search"></i></span>
-                    <input type="text" name="q" class="form-control border-start-0 ps-0"
-                           placeholder="Szukaj po nazwie lub SKU..."
-                           value="{{ current_filters.q }}">
-                </div>
-            </div>
-
-            <div class="col-md-3 col-lg-2">
-                <select name="brand" class="form-select text-muted">
-                    <option value="">Wszystkie Marki</option>
-                    {% for brand in available_brands %}
-                        <option value="{{ brand.id }}" {% if current_filters.brand|int == brand.id %}selected{% endif %}>
-                            {{ brand.name }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="col-md-3 col-lg-2">
-                <select name="availability" class="form-select text-muted">
-                    <option value="">Wszystkie Statusy</option>
-                    {% for status in available_statuses %}
-                        <option value="{{ status }}" {% if current_filters.availability == status %}selected{% endif %}>
-                            {{ status }}
-                        </option>
-                    {% endfor %}
-                </select>
-            </div>
-
-            <div class="col-md-12 col-lg-5 d-flex justify-content-lg-end align-items-center gap-2 mt-3 mt-lg-0">
-                <button type="submit" class="btn btn-primary px-4"><i class="bi bi-funnel me-1"></i> Filtruj</button>
-
-                {% if current_filters.q or current_filters.brand or current_filters.availability %}
-                    <a href="{{ url_for('project_dashboard', project_id=project.id, archived=current_filters.archived) }}" class="btn btn-outline-secondary px-3" title="Wyczyść filtry">
-                        <i class="bi bi-x-lg"></i>
-                    </a>
-                {% endif %}
-
-                <div class="ms-3 text-muted small border-start ps-3 py-1 d-none d-md-block">
-                    Wyników: <strong class="text-dark fs-6">{{ pagination.total }}</strong>
-                </div>
-            </div>
-
-            <div class="col-12 d-md-none text-muted small text-center mt-2">
-                Wyników: <strong class="text-dark">{{ pagination.total }}</strong>
-            </div>
-
-        </form>
-    </div>
-</div>
-            <div class="row g-4 mb-4">
-                <div class="col-md-8">
-    <div class="card border-0 shadow-sm">
+    <div class="card shadow-sm border-0">
         <div class="card-body p-0">
-            <div class="table-responsive">
-                <table class="table table-hover align-middle mb-0">
-<thead class="bg-light">
-    <tr>
-        <th class="ps-4 w-50">
-            {{ sort_link('title', 'Produkt') }}
-        </th>
-        <th>
-            {{ sort_link('brand', 'Marka') }}
-        </th>
-        <th>
-            {{ sort_link('sku', 'SKU') }}
-        </th>
-        <th class="text-end">
-            {{ sort_link('price', 'Twoja Cena') }}
-        </th>
-        <th class="text-center">
-            {{ sort_link('price_index', 'Price Index') }}
-        </th>
-        <th class="text-center">
-            {{ sort_link('status', 'Status') }}
-        </th>
-        <th class="text-end pe-4">Akcja</th>
-    </tr>
-</thead>
-                    <tbody>
-                        {% for product in products %}
-                        <tr {% if not product.is_active %}class="table-secondary text-muted"{% endif %}>
-    <td class="ps-4 position-relative">
-        <div class="d-flex align-items-center">
-            {% if product.image_link %}
-                <img src="{{ product.image_link }}" alt="img" class="rounded border me-3" style="width: 48px; height: 48px; object-fit: contain; background: #fff; opacity: {{ '0.6' if not product.is_active else '1' }};">
-            {% else %}
-                <div class="rounded border me-3 d-flex align-items-center justify-content-center bg-light text-muted" style="width: 48px; height: 48px;">
-                    <i class="bi bi-box-seam"></i>
-                </div>
-            {% endif %}
-
-            <div>
-                <div class="fw-bold">
-                    <a href="{{ url_for('product_details', project_id=project.id, product_id=product.id) }}" class="text-decoration-none {{ 'text-muted' if not product.is_active else 'text-dark' }} stretched-link">
-                        {{ product.title }}
-                    </a>
-                    {% if not product.is_active %}
-                        <span class="badge bg-secondary ms-2" style="font-size: 0.6rem;">ARCHIWUM</span>
-                    {% endif %}
-                </div>
-                {% if product.my_url %}
-<a href="{{ product.my_url }}" target="_blank" class="small text-muted text-decoration-none position-relative" style="z-index: 2;">
-                    <i class="bi bi-link-45deg"></i> Sklep własny <i class="bi bi-box-arrow-up-right small ms-1"></i>
-                </a>
-                {% endif %}
-            </div>
+            <div id="pricingGrid" class="ag-theme-alpine" style="height: 70vh; width: 100%;"></div>
         </div>
-    </td>
-
-    <td>
-        {% if product.brand %}
-            <span class="badge bg-light text-dark border fw-normal">
-                {{ product.brand.name }}
-            </span>
-        {% else %}
-            <span class="text-muted small">-</span>
-        {% endif %}
-    </td>
-
-    <td>
-        <span class="small font-monospace text-muted">{{ product.sku or '-' }}</span>
-    </td>
-
-<td class="text-end">
-        <div class="d-flex flex-column align-items-end">
-            <div class="fw-bold {{ 'text-success' if product.is_active else 'text-muted' }}">
-    {{ "{:,.2f}".format(product.my_price).replace(',', ' ') if product.my_price else '-' }} PLN
+    </div>
 </div>
 
-            {% set status = product.availability|lower|replace('_', ' ') if product.availability else '' %}
-
-            {% if 'in stock' in status %}
-                <span class="badge bg-success-subtle text-success border border-success-subtle mt-1" style="font-size: 0.7rem;">
-                    <i class="bi bi-check-circle-fill me-1"></i>Dostępny
-                </span>
-            {% elif 'out of stock' in status %}
-                <span class="badge bg-danger-subtle text-danger border border-danger-subtle mt-1" style="font-size: 0.7rem;">
-                    <i class="bi bi-x-circle-fill me-1"></i>Niedostępny
-                </span>
-            {% elif 'preorder' in status %}
-                <span class="badge bg-warning-subtle text-warning-emphasis border border-warning-subtle mt-1" style="font-size: 0.7rem;">
-                    <i class="bi bi-clock-history me-1"></i>Przedsprzedaż
-                </span>
-            {% else %}
-                <span class="badge bg-light text-muted border mt-1" style="font-size: 0.7rem;">
-                    {{ product.availability or 'Brak danych' }}
-                </span>
-            {% endif %}
-        </div>
-    </td>
-
-                        <td class="text-center">
-        {% if product.price_index %}
-            {% if product.price_index > 105 %}
-                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1" title="Jesteś tańszy od średniej rynkowej">
-                    <i class="bi bi-graph-up-arrow"></i> {{ product.price_index }}
-                </span>
-            {% elif product.price_index < 95 %}
-                <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1" title="Jesteś droższy od średniej rynkowej">
-                    <i class="bi bi-graph-down-arrow"></i> {{ product.price_index }}
-                </span>
-            {% else %}
-                <span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1" title="Jesteś w cenie rynkowej">
-                    <i class="bi bi-dash"></i> {{ product.price_index }}
-                </span>
-            {% endif %}
-        {% else %}
-            <span class="text-muted small">-</span>
-        {% endif %}
-    </td>
-<td class="text-center">
-        {% if current_filters.filter == 'errors' %}
-            <span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded-2" title="Liczba uszkodzonych linków konkurencji">
-                <i class="bi bi-exclamation-triangle-fill me-1"></i> Błędy: {{ product.broken_competitor_count }}
-            </span>
-        {% else %}
-            {% if product.competitor_count > 0 %}
-                <span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded-2">
-                    Monitorowany ({{ product.competitor_count }})
-                </span>
-            {% else %}
-                <span class="badge bg-warning-subtle text-dark border border-warning-subtle px-2 py-1 rounded-2">
-                    Brak linków
-                </span>
-            {% endif %}
-        {% endif %}
-    </td>
-
-    <td class="text-end pe-4" style="z-index: 2; position: relative;">
-        {% if not product.is_active %}
-            <!-- Przycisk przywracania z archiwum -->
-            <form method="POST"
-                  action="{{ url_for('restore_product', project_id=project.id, product_id=product.id) }}"
-                  style="display: inline;">
-                <button type="submit" class="btn btn-sm btn-outline-success border-0" title="Przywróć produkt">
-                    <i class="bi bi-arrow-counterclockwise"></i>
-                </button>
-            </form>
-        {% endif %}
-
-<form method="POST"
-              action="{{ url_for('delete_product', project_id=project.id, product_id=product.id) }}"
-              onsubmit="return confirm('Usunąć ten produkt trwale?');"
-              style="display: inline;">
-            <button type="submit" class="btn btn-sm btn-outline-secondary border-0" title="Usuń trwale">
-                <i class="bi bi-trash"></i>
-            </button>
-        </form>
-    </td>
-</tr>
-                        {% else %}
-                        <tr>
-                            <td colspan="6" class="text-center py-5 text-muted">
-                                <i class="bi bi-box-seam display-6 mb-3 d-block"></i>
-                                {% if current_filters.archived %}
-                                    Brak zarchiwizowanych produktów.
-                                {% else %}
-                                    Brak aktywnych produktów. Dodaj coś przyciskiem powyżej.
-                                {% endif %}
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            </div>
-    </div>
-                    {% if pagination.pages > 1 %}
-        <nav aria-label="Nawigacja stron" class="mt-4 mb-4">
-            <ul class="pagination justify-content-center">
-                <li class="page-item {% if not pagination.has_prev %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('project_dashboard', project_id=project.id, page=pagination.prev_num, q=current_filters.q, brand=current_filters.brand, availability=current_filters.availability, filter=current_filters.filter, archived=current_filters.archived, sort=current_filters.sort, order=current_filters.order) }}">Poprzednia</a>
-                </li>
-
-                {% for page_num in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
-                    {% if page_num %}
-                        <li class="page-item {% if page_num == pagination.page %}active{% endif %}">
-                            <a class="page-link" href="{{ url_for('project_dashboard', project_id=project.id, page=page_num, q=current_filters.q, brand=current_filters.brand, availability=current_filters.availability, filter=current_filters.filter, archived=current_filters.archived, sort=current_filters.sort, order=current_filters.order) }}">{{ page_num }}</a>
-                        </li>
-                    {% else %}
-                        <li class="page-item disabled"><span class="page-link">...</span></li>
-                    {% endif %}
-                {% endfor %}
-
-                <li class="page-item {% if not pagination.has_next %}disabled{% endif %}">
-                    <a class="page-link" href="{{ url_for('project_dashboard', project_id=project.id, page=pagination.next_num, q=current_filters.q, brand=current_filters.brand, availability=current_filters.availability, filter=current_filters.filter, archived=current_filters.archived, sort=current_filters.sort, order=current_filters.order) }}">Następna</a>
-                </li>
-            </ul>
-        </nav>
-        {% endif %}
-</div>
-
-<div class="col-md-4">
-
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body">
-            <h6 class="card-title fw-bold mb-3">Zmiany Cen (Ostatnie spr.)</h6>
-
-            <div class="d-flex align-items-center justify-content-between mb-2">
-                <span class="text-muted small">Wzrosły:</span>
-                <span class="badge bg-danger-subtle text-danger rounded-pill px-3">
-                    <i class="bi bi-arrow-up-short"></i> {{ stats.increased }}
-                </span>
-            </div>
-
-            <div class="d-flex align-items-center justify-content-between">
-                <span class="text-muted small">Spadły:</span>
-                <span class="badge bg-success-subtle text-success rounded-pill px-3">
-                    <i class="bi bi-arrow-down-short"></i> {{ stats.decreased }}
-                </span>
-            </div>
-
-            {% if stats.increased == 0 and stats.decreased == 0 %}
-                <div class="mt-3 text-center small text-muted fst-italic">
-                    Brak zmian cen w ostatnim czasie.
-                </div>
-            {% endif %}
-        </div>
-    </div>
-
-    <div class="card border-0 shadow-sm mb-3">
-        <div class="card-body">
-            <h6 class="card-title fw-bold mb-3">Monitoring</h6>
-            <div class="d-flex justify-content-between mb-2">
-                <span class="small text-muted">Aktywne linki:</span>
-                <span class="fw-bold">{{ stats.total_mappings }}</span>
-            </div>
-            <div class="d-flex justify-content-between">
-                <span class="small text-muted">Produkty:</span>
-                <span class="fw-bold">{{ stats.total_products }}</span>
-            </div>
-        </div>
-    </div>
-
-    <div class="card border-0 shadow-sm">
-        <div class="card-body">
-            <h6 class="card-title fw-bold mb-3">Dostępność Produktów</h6>
-
-            <div style="position: relative; height: 180px; width: 100%;">
-                <canvas id="availabilityChart"></canvas>
-
-                <div id="chartCenterText" style="position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); text-align: center; pointer-events: none;">
-                    </div>
-            </div>
-
-            <div class="row mt-3 text-center small">
-                <div class="col-4 border-end">
-                    <div class="fw-bold text-success">{{ stats.avail_in_stock }}</div>
-                    <div class="text-muted" style="font-size: 0.7rem;">Dostępne</div>
-                </div>
-                <div class="col-4 border-end">
-                    <div class="fw-bold text-danger">{{ stats.avail_out_of_stock }}</div>
-                    <div class="text-muted" style="font-size: 0.7rem;">Braki</div>
-                </div>
-                <div class="col-4">
-                    <div class="fw-bold text-secondary">{{ stats.avail_other }}</div>
-                    <div class="text-muted" style="font-size: 0.7rem;">Inne</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-</div>
-
-<div class="modal fade" id="addProductModal" tabindex="-1" aria-hidden="true">
-  <div class="modal-dialog">
-    <div class="modal-content">
-
-      <div class="modal-header">
-        <h5 class="modal-title fw-bold">Nowy Produkt</h5>
-        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
-      </div>
-
-      <form method="POST" action="{{ url_for('add_product', project_id=project.id) }}">
-          <div class="modal-body">
-
-            <div class="mb-3">
-                <label class="form-label">Nazwa produktu <span class="text-danger">*</span></label>
-                <input type="text" name="title" class="form-control" required placeholder="np. Konsola PlayStation 5">
-            </div>
-
-            <div class="mb-3">
-                <label class="form-label">Link do Twojego sklepu</label>
-                <input type="url" name="url" class="form-control" placeholder="https://twojsklep.pl/produkt/ps5">
-            </div>
-
-            <div class="row">
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">SKU (Kod magazynowy)</label>
-                    <input type="text" name="sku" class="form-control" placeholder="SONY-PS5-001">
-                </div>
-                <div class="col-md-6 mb-3">
-                    <label class="form-label">Twoja Cena (PLN)</label>
-                    <input type="text" name="price" class="form-control" placeholder="2499.00">
-                </div>
-            </div>
-
-          </div>
-
-          <div class="modal-footer">
-            <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Anuluj</button>
-            <button type="submit" class="btn btn-primary">Zapisz produkt</button>
-          </div>
-      </form>
-
-    </div>
-  </div>
-</div>
-                <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/chartjs-adapter-date-fns/dist/chartjs-adapter-date-fns.bundle.min.js"></script>
-
-                <script>
-    document.addEventListener("DOMContentLoaded", function() {
-        // --- KONWERSJA CZASU UTC NA LOKALNY ---
-        document.querySelectorAll('.local-time').forEach(function(el) {
-            const utcTime = el.getAttribute('data-utc');
-            if (utcTime) {
-                const date = new Date(utcTime);
-                // Formatowanie: YYYY-MM-DD HH:MM
-                const formatted = date.getFullYear() + '-' +
-                                  String(date.getMonth() + 1).padStart(2, '0') + '-' +
-                                  String(date.getDate()).padStart(2, '0') + ' ' +
-                                  String(date.getHours()).padStart(2, '0') + ':' +
-                                  String(date.getMinutes()).padStart(2, '0');
-                el.textContent = "Ostatnia: " + formatted;
-            }
-        });
-
-        const canvas = document.getElementById('availabilityChart');
-        if (!canvas) return;
-
-        const ctxAvail = canvas.getContext('2d');
-
-        // Dane z Backend
-        const inStock = {{ stats.avail_in_stock|default(0) }};
-        const outStock = {{ stats.avail_out_of_stock|default(0) }};
-        const other = {{ stats.avail_other|default(0) }};
-
-        // --- OBLICZANIE PROCENTÓW (NOWOŚĆ) ---
-        const total = inStock + outStock + other;
-        let percent = 0;
-        if (total > 0) {
-            percent = Math.round((inStock / total) * 100);
-        }
-
-        // Wstawiamy ładny HTML w środek wykresu
-        const centerDiv = document.getElementById('chartCenterText');
-        if (centerDiv) {
-            centerDiv.innerHTML = `
-                <div class="h2 fw-bold text-dark mb-0">${percent}%</div>
-                <div class="text-muted small" style="font-size: 0.7rem; margin-top: -5px;">Dostępnych</div>
-            `;
-        }
-
-        // Rysowanie Wykresu
-        new Chart(ctxAvail, {
-            type: 'doughnut',
-            data: {
-                labels: ['Dostępne', 'Niedostępne', 'Inne'],
-                datasets: [{
-                    data: [inStock, outStock, other],
-                    backgroundColor: [
-                        '#198754', // Zielony
-                        '#dc3545', // Czerwony
-                        '#6c757d'  // Szary
-                    ],
-                    borderWidth: 0,
-                    hoverOffset: 4
-                }]
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        // Definicja kolumn zgodnie z Twoim zapotrzebowaniem z Excela
+        const columnDefs = [
+            // --- GRUPA: PODSTAWOWE ---
+            {
+                headerName: "Dane podstawowe",
+                children: [
+                    { field: "status", headerName: "Status", width: 110, filter: true, checkboxSelection: true },
+                    { field: "sku", headerName: "SKU", width: 130, filter: true, sortable: true, pinned: 'left' },
+                    { field: "title", headerName: "Nazwa produktu", width: 250, filter: true, sortable: true },
+                    { field: "producer", headerName: "Producent", width: 130, filter: true },
+                    { field: "supplier_name", headerName: "Nazwa dostawcy", width: 140, filter: true },
+                    { field: "supplier_sku", headerName: "ID u dostawcy", width: 130, filter: true },
+                    { field: "stock_quantity", headerName: "Stan magazynowy", width: 140, sortable: true }
+                ]
             },
-            options: {
-                responsive: true,
-                maintainAspectRatio: false,
-                plugins: {
-                    legend: { display: false },
-                    tooltip: {
-                        callbacks: {
-                            label: function(context) {
-                                return ' ' + context.label + ': ' + context.raw;
-                            }
-                        }
-                    }
-                },
-                cutout: '75%', // Cienki pierścień, żeby tekst się zmieścił
+            // --- GRUPA: KOSZTY WALUTOWE ---
+            {
+                headerName: "Koszty i Waluty",
+                children: [
+                    { field: "currency", headerName: "Waluta", width: 100, filter: true },
+                    { field: "vat_rate", headerName: "VAT %", width: 90 },
+                    { field: "purchase_price_net_currency", headerName: "Cena zakupu (Netto waluta)", width: 180 },
+                    { field: "catalog_price_net_currency", headerName: "Cena katalog (Netto waluta)", width: 180 }
+                ]
+            },
+            // --- GRUPA: PRZELICZENIA PLN ---
+            {
+                headerName: "Przeliczenia PLN (Wyliczane)",
+                children: [
+                    { field: "purchase_price_current_exchange_pln", headerName: "Cena zakupu (Kurs PLN)", width: 180 },
+                    { field: "purchase_price_net_pln", headerName: "Cena zakupu Netto PLN", width: 170 },
+                    { field: "purchase_price_gross_pln", headerName: "Cena zakupu Brutto PLN", width: 170 },
+                    { field: "catalog_price_current_exchange_pln", headerName: "Cena katalog (Kurs PLN)", width: 180 },
+                    { field: "catalog_price_net_pln", headerName: "Cena katalog Netto PLN", width: 170 },
+                    { field: "catalog_price_gross_pln", headerName: "Cena katalog Brutto PLN", width: 170 }
+                ]
+            },
+            // --- GRUPA: ERP NEXO ---
+            {
+                headerName: "System ERP (Nexo)",
+                children: [
+                    { field: "last_nexo_price_net", headerName: "Ostatni zakup Netto NEXO", width: 180 },
+                    { field: "last_nexo_price_gross", headerName: "Ostatni zakup Brutto NEXO", width: 180 }
+                ]
+            },
+            // --- GRUPA: SKLEP SOTE ---
+            {
+                headerName: "Sklep Docelowy (SOTE)",
+                children: [
+                    { field: "target_price_gross", headerName: "Cena Brutto SOTE", width: 150, editable: true, cellClass: 'bg-orange-light' },
+                    { field: "target_price_strike", headerName: "Cena przekreślona SOTE", width: 180, editable: true },
+                    { field: "margin_percent", headerName: "Marża %", width: 110, sortable: true },
+                    { field: "margin_pln", headerName: "Marża PLN", width: 120, sortable: true },
+                    { field: "min_margin_percent", headerName: "Marża % min", width: 120, editable: true },
+                    { field: "last_sync", headerName: "Data synchro SOTE", width: 160 }
+                ]
             }
-        });
+        ];
+
+        // Opcje siatki AG Grid
+        const gridOptions = {
+            columnDefs: columnDefs,
+            rowData: [], // Na razie puste, zaraz połączymy to z backendem
+            defaultColDef: {
+                resizable: true,
+                sortable: true
+            },
+            pagination: true,
+            paginationPageSize: 50,
+            paginationPageSizeSelector: [20, 50, 100],
+            onCellValueChanged: function (event) {
+                // Tutaj w przyszłości wepniemy automatyczny zapis AJAX do bazy,
+                // gdy analityk zmieni cenę bezpośrednio w komórce tabeli!
+                console.log('Zmieniono wartość:', event.data);
+            }
+        };
+
+        // Inicjalizacja tabeli w wyznaczonym divie
+        const gridDiv = document.querySelector('#pricingGrid');
+        const gridApi = agGrid.createGrid(gridDiv, gridOptions);
+        window.gridApi = gridApi;
+
+        // --- ZASYSSANIE DANYCH Z BACKENDU ---
+        // Pokazujemy kręcące się kółko ładowania
+        gridApi.showLoadingOverlay();
+
+        // Wykonujemy zapytanie do naszego nowego API
+        fetch("{{ url_for('api_project_products', project_id=project.id) }}")
+            .then(response => response.json())
+            .then(data => {
+                if (data.products) {
+                    // Wrzucamy dane do tabeli!
+                    gridApi.setGridOption('rowData', data.products);
+                } else {
+                    console.error("Błąd API:", data.error);
+                }
+            })
+            .catch(error => {
+                console.error("Błąd sieci:", error);
+            })
+            .finally(() => {
+                // Ukrywamy kółko ładowania
+                gridApi.hideOverlay();
+            });
     });
 </script>
+
+<style>
+    /* Stylowanie nagłówków grup w AG Grid, by pasowały do naszego PriceHuba */
+    .ag-header-group-cell {
+        font-weight: bold !important;
+        background-color: #f8f9fa !important;
+        border-bottom: 2px solid #dee2e6 !important;
+    }
+
+    .ag-header-cell {
+        font-weight: 600 !important;
+    }
+
+    /* Podświetlenie komórki ceny docelowej, żeby analityk wiedział, że może ją edytować */
+    .bg-orange-light {
+        background-color: #fff8f2 !important;
+        font-weight: bold;
+        color: #fd7e14;
+    }
+</style>
 {% endblock %}

@@ -63,84 +63,19 @@
                         <a href="{{ url_for('project_overview', project_id=project.id) }}"
                             class="nav-link {% if request.endpoint == 'project_overview' %}active{% else %}link-body-emphasis{% endif %}"
                             aria-current="page">
-                            <i class="bi bi-house-door me-2"></i>
-                            Panel główny
+                            <i class="bi bi-house-door me-2"></i> Panel główny
                         </a>
                     </li>
                     <li>
                         <a href="{{ url_for('project_dashboard', project_id=project.id) }}"
-                            class="nav-link {% if request.endpoint == 'project_dashboard' or request.endpoint == 'product_details' %}active{% else %}link-body-emphasis{% endif %}">
-                            <i class="bi bi-box-seam me-2"></i> Produkty
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a href="#analysisSubmenu" data-bs-toggle="collapse"
-                            class="nav-link link-body-emphasis d-flex align-items-center"
-                            aria-expanded="{% if request.endpoint in ['project_analysis', 'project_margin', 'project_margin_by_brand', 'competitors_list', 'competitor_analysis', 'sales_report', 'compare_projects', 'brand_monitoring'] %}true{% else %}false{% endif %}">
-                            <i class="bi bi-graph-up-arrow me-2"></i>
-                            Analiza
-                            <i class="bi bi-chevron-down ms-auto"
-                                style="font-size: 0.8rem; transition: transform 0.2s;"></i>
-                        </a>
-                        <div class="collapse {% if request.endpoint in ['project_analysis', 'project_margin', 'project_margin_by_brand', 'competitors_list', 'competitor_analysis', 'sales_report', 'compare_projects', 'brand_monitoring'] %}show{% endif %}"
-                            id="analysisSubmenu">
-                            <ul class="nav flex-column ms-3 mt-1 pb-2" style="font-size: 0.9rem;">
-                                <li>
-                                    <a href="{{ url_for('project_analysis', project_id=project.id) }}"
-                                        class="nav-link {% if request.endpoint == 'project_analysis' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                                        <i class="bi bi-bullseye me-2"></i> Pozycja rynkowa
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="{{ url_for('competitors_list', project_id=project.id) }}"
-                                        class="nav-link {% if request.endpoint in ['competitors_list', 'competitor_analysis'] %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                                        <i class="bi bi-incognito me-2"></i> Baza Konkurentów
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="{{ url_for('project_margin', project_id=project.id) }}"
-                                        class="nav-link {% if request.endpoint == 'project_margin' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                                        <i class="bi bi-cash-stack me-2"></i> Rentowność i Marża
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="{{ url_for('project_margin_by_brand', project_id=project.id) }}"
-                                        class="nav-link {% if request.endpoint == 'project_margin_by_brand' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                                        <i class="bi bi-bar-chart-steps me-2"></i> Marża wg Producenta
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="{{ url_for('brand_monitoring', project_id=project.id) }}"
-                                        class="nav-link {% if request.endpoint == 'brand_monitoring' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                                        <i class="bi bi-eye me-2"></i> Monitoring cen Marki
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="{{ url_for('sales_report', project_id=project.id) }}"
-                                        class="nav-link {% if request.endpoint == 'sales_report' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                                        <i class="bi bi-cart-check me-2"></i> Raport Sprzedaży
-                                    </a>
-                                </li>
-                                <li>
-                                    <a href="{{ url_for('compare_projects', project_id=project.id) }}"
-                                        class="nav-link {% if request.endpoint == 'compare_projects' %}text-primary fw-bold{% else %}text-muted{% endif %} py-1">
-                                        <i class="bi bi-arrow-left-right me-2"></i> Audyt Projektów
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                    <li>
-                        <a href="{{ url_for('project_reports', project_id=project.id) }}"
-                            class="nav-link {% if request.endpoint == 'project_reports' %}active{% else %}link-body-emphasis{% endif %}">
-                            <i class="bi bi-bar-chart me-2"></i>
-                            Raporty
+                            class="nav-link {% if request.endpoint == 'project_dashboard' %}active{% else %}link-body-emphasis{% endif %}">
+                            <i class="bi bi-table me-2"></i> Cenniki i Marże
                         </a>
                     </li>
                     <li>
-                        <a href="{{ url_for('project_scheduler', project_id=project.id) }}"
-                            class="nav-link {% if request.endpoint == 'project_scheduler' %}active{% else %}link-body-emphasis{% endif %}">
-                            <i class="bi bi-clock-history me-2"></i> Harmonogram
+                        <a href="{{ url_for('project_bundles', project_id=project.id) }}"
+                            class="nav-link {% if request.endpoint == 'project_bundles' %}active{% else %}link-body-emphasis{% endif %}">
+                            <i class="bi bi-boxes me-2"></i> Zestawy produktowe
                         </a>
                     </li>
                 </ul>
@@ -176,7 +111,6 @@
                     </a>
                     <ul class="dropdown-menu text-small shadow">
                         <li><a class="dropdown-item" href="{{ url_for('projects') }}">Moje projekty</a></li>
-                        <li><a class="dropdown-item" href="{{ url_for('scraper_debugger') }}">Scraper Debugger</a></li>
                         <li>
                             <hr class="dropdown-divider">
                         </li>
