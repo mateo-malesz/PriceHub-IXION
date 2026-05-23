@@ -78,6 +78,12 @@
                             <i class="bi bi-boxes me-2"></i> Zestawy produktowe
                         </a>
                     </li>
+                    <li>
+                        <a href="{{ url_for('sote_variants', project_id=project.id) }}"
+                            class="nav-link {% if request.endpoint == 'sote_variants' %}active{% else %}link-body-emphasis{% endif %}">
+                            <i class="bi bi-diagram-2 me-2"></i> Warianty SOTE
+                        </a>
+                    </li>
                 </ul>
 
                 {% else %}

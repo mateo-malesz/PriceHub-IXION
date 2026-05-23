@@ -15,17 +15,20 @@
         </div>
         <div class="d-flex gap-2">
             <a href="{{ url_for('sync_sellassist') }}" class="btn btn-outline-dark fw-bold">
-                <i class="bi bi-arrow-repeat me-2"></i>Pobierz produkty
+                <i class="bi bi-arrow-repeat me-2"></i>Katalog
             </a>
             <a href="{{ url_for('sync_bundles', project_id=project.id) }}" class="btn btn-outline-dark fw-bold">
-                <i class="bi bi-boxes me-2"></i>Synchro Zestawów
+                <i class="bi bi-boxes me-2"></i>Zestawy
+            </a>
+            <a href="{{ url_for('sync_sote_options', project_id=project.id) }}"
+                class="btn btn-outline-info fw-bold text-dark">
+                <i class="bi bi-diagram-3 me-2"></i>Mapuj SOTE
             </a>
             <a href="#" class="btn btn-primary fw-bold px-4">
-                <i class="bi bi-file-earmark-excel me-2"></i>Importuj Koszty (Excel)
+                <i class="bi bi-file-earmark-excel me-2"></i>Importuj Koszty
             </a>
         </div>
     </div>
-
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
             <div id="pricingGrid" class="ag-theme-alpine" style="height: 70vh; width: 100%;"></div>

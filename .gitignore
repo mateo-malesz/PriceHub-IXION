@@ -1,6 +1,7 @@
 # Wirtualne srodowisko
 venv/
 env/
+.venv/
 
 # Python cache (kompilowane pliki)
 __pycache__/
@@ -24,6 +25,8 @@ __pycache__/
 # Inne foldery
 backup/
 demo/
+API SOTE/
+api_cache/
 
 # Baza
 *.db*

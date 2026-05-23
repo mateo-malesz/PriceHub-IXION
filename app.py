@@ -25,6 +25,8 @@ from dotenv import load_dotenv
 from threading import Thread
 from flask import jsonify
 from flask import current_app
+from zeep import Client
+from zeep.helpers import serialize_object
 try:
     from zoneinfo import ZoneInfo
 except ImportError:
@@ -120,18 +122,46 @@ class MyModelView(ModelView):
         flash('Brak uprawnień administratora.', category='error')
         return redirect(url_for('home'))
 
-class ProductModelView(MyModelView):
-    # Aktualizujemy wyszukiwanie po nowych kolumnach
-    column_searchable_list = ['title', 'sku', 'supplier_sku']
+# class ProductModelView(MyModelView):
+#     # Aktualizujemy wyszukiwanie po nowych kolumnach
+#     column_searchable_list = ['title', 'sku', 'supplier_sku']
     
-    # Aktualizujemy filtry
-    column_filters = ['producer', 'currency']
+#     # Aktualizujemy filtry
+#     column_filters = ['producer', 'currency']
     
-    # Aktualizujemy listę wyświetlanych kolumn
-    column_list = ['sku', 'title', 'producer', 'currency', 'vat_rate']
+#     # Aktualizujemy listę wyświetlanych kolumn
+#     column_list = ['sku', 'title', 'producer', 'currency', 'vat_rate']
     
-    # Aktualizujemy sortowanie
-    column_sortable_list = ['title', 'sku']
+#     # Aktualizujemy sortowanie
+#     column_sortable_list = ['title', 'sku']
+
+class ProductAdminView(ModelView):
+    # 1. Kolumny widoczne w głównej tabeli (wybrałem najważniejsze, żeby nie zepsuć responsywności)
+    column_list = (
+        'sku', 'title', 'stock', 'sote_current_price_gross', 
+        'producer', 'ean', 'sellassist_id', 'sote_id', 'sote_option_id',
+        'purchase_price_net_currency', 'vat_rate'
+    )
+
+    # 2. Pola, po których można swobodnie wyszukiwać w pasku "Search"
+    column_searchable_list = ('sku', 'title', 'ean', 'producer', 'sellassist_id')
+
+    # 3. Zestaw filtrów w bocznym menu (pozwala np. wyfiltrować "stock > 0")
+    column_filters = ('producer', 'stock', 'sote_id', 'vat_rate')
+
+    # 4. Szybka edycja komórek bezpośrednio z widoku listy (bez wchodzenia w detale)
+    column_editable_list = ['stock', 'sote_current_price_gross', 'purchase_price_net_currency']
+
+    # 5. Domyślne sortowanie
+    column_default_sort = 'sku'
+
+    # 6. Paginacja
+    page_size = 50
+
+    # Ochrona widoku (dostosuj do swojego obecnego mechanizmu logowania w adminie)
+    def is_accessible(self):
+        from flask_login import current_user
+        return current_user.is_authenticated
 
 class UserModelView(MyModelView):
     def on_model_change(self, form, model, is_created):
@@ -211,15 +241,22 @@ class Supplier(db.Model):
 # --- PRODUKT (BAZA GLOBALNA) ---
 class Product(db.Model):
     sku = db.Column(db.String(64), primary_key=True)
-    sellassist_id = db.Column(db.String(64), unique=True, nullable=True) # <- TO DODAJEMY
+    sellassist_id = db.Column(db.String(64), unique=True, nullable=True)
+    sote_id = db.Column(db.Integer, nullable=True)        # ID produktu nadrzędnego
+    sote_option_id = db.Column(db.Integer, nullable=True) # ID konkretnego wariantu (jeśli istnieje)
+
     title = db.Column(db.String(200), nullable=False)
-    producer = db.Column(db.String(100), nullable=True)
+    producer = db.Column(db.String(128), nullable=True)
+    ean = db.Column(db.String(32), nullable=True)
+    stock = db.Column(db.Integer, default=0) # Fizyczny stan magazynowy
     supplier_sku = db.Column(db.String(100), nullable=True) # ID u dostawcy
     supplier_id = db.Column(db.Integer, db.ForeignKey('supplier.id'))
     
     currency = db.Column(db.String(10), default='PLN')
     vat_rate = db.Column(db.Integer, default=23)
     
+    sote_current_price_gross = db.Column(db.Float, nullable=True) # Aktualna cena brutto w sklepie
+
     purchase_price_net_currency = db.Column(db.Float, nullable=True) # W walucie
     catalog_price_net_currency = db.Column(db.Float, nullable=True)
     
@@ -401,7 +438,7 @@ def sync_sellassist():
     }
 
     # Pobieramy paczkę produktów
-    params = {"limit": 100}
+    params = {"limit": 300}
 
     try:
         response = requests.get(api_url, headers=headers, params=params)
@@ -547,6 +584,35 @@ def project_bundles(project_id):
         
     return render_template('bundles.html', project=project, bundles=bundles_dict)
 
+@app.route('/project/<int:project_id>/sote-variants')
+@login_required
+def sote_variants(project_id):
+    project = Project.query.get_or_404(project_id)
+    if current_user not in project.users:
+        flash('Brak dostępu.', 'error')
+        return redirect(url_for('projects'))
+        
+    # Pobieramy z bazy globalnej tylko te produkty, które mają nadane ID z SOTE
+    sote_products = Product.query.filter(Product.sote_id.isnot(None)).all()
+    
+    # Grupujemy produkty po nadrzędnym sote_id
+    variants_dict = {}
+    for p in sote_products:
+        sid = p.sote_id
+        if sid not in variants_dict:
+            variants_dict[sid] = {'main': None, 'variants': []}
+        
+        # Jeśli nie ma sote_option_id, to jest to produkt główny (rodzic)
+        if p.sote_option_id is None:
+            variants_dict[sid]['main'] = p
+        else:
+            # W przeciwnym wypadku to jest wariant (dziecko)
+            variants_dict[sid]['variants'].append(p)
+            
+    # --- TO DODAJEMY: Filtrujemy słownik, zostawiając TYLKO te wpisy, które mają warianty ---
+    filtered_dict = {sid: data for sid, data in variants_dict.items() if len(data['variants']) > 0}
+            
+    return render_template('sote_variants.html', project=project, variants_dict=filtered_dict)
 
 # --- SYNCHRONIZACJA ZESTAWÓW (Z SellAssist do SQLite) ---
 @app.route('/project/<int:project_id>/sync-bundles')
@@ -610,6 +676,93 @@ def sync_bundles(project_id):
     # Po zakończeniu syncu przekierowujemy użytkownika od razu na podstronę zestawów, by widział efekt
     return redirect(url_for('project_bundles', project_id=project.id))
 
+@app.route('/project/<int:project_id>/sync-sote')
+@login_required
+def sync_sote_options(project_id):
+    project = Project.query.get_or_404(project_id)
+    if current_user not in project.users:
+        flash('Brak dostępu.', 'error')
+        return redirect(url_for('projects'))
+
+    # Sprawdzamy czy projekt ma wpisane dane do SOTE
+    if not project.api_url or not project.api_user or not project.api_password:
+        flash("Uzupełnij dane dostępowe do SOTE w ustawieniach projektu!", "error")
+        return redirect(url_for('project_dashboard', project_id=project.id))
+
+    WSDL_LOGIN = f"{project.api_url}/webapi/soap?wsdl"
+    WSDL_PRODUCT = f"{project.api_url}/product/soap?wsdl"
+
+    try:
+        # 1. Logowanie do SOTE
+        client_login = Client(WSDL_LOGIN)
+        login_type = client_login.get_type("ns0:doLogin")
+        session_hash = client_login.service.doLogin(login_type(
+            _culture="pl", 
+            username=project.api_user, 
+            password=project.api_password
+        ))
+        
+        # 2. Pobieranie głównej listy produktów
+        client_product = Client(WSDL_PRODUCT)
+        get_list_type = client_product.get_type("ns0:GetProductList")
+        products_response = client_product.service.GetProductList(get_list_type(_session_hash=session_hash))
+        
+        products = serialize_object(products_response)
+        if not isinstance(products, list):
+            products = [products]
+
+        updated_main = 0
+        updated_options = 0
+
+        # 3. Iteracja i mapowanie do SQLite
+        for p in products:
+            p_id = p.get('id')
+            p_code = p.get('code')
+            
+            # Mapowanie produktu płaskiego (bez opcji)
+            if p_code:
+                db_prod = Product.query.filter_by(sku=p_code).first()
+                if db_prod:
+                    db_prod.sote_id = p_id
+                    updated_main += 1
+
+            # Sprawdzanie opcji (wariantów)
+            try:
+                get_options_type = client_product.get_type("ns0:GetProductOptionsList")
+                options_response = client_product.service.GetProductOptionsList(
+                    get_options_type(_session_hash=session_hash, product_id=p_id)
+                )
+                
+                if options_response:
+                    options = serialize_object(options_response)
+                    if not isinstance(options, list):
+                        options = [options]
+                        
+                    for opt in options:
+                        opt_id = opt.get('id')
+                        opt_code = opt.get('code') or opt.get('sku') or opt.get('name')
+                        
+                        if opt_code:
+                            # Szukamy tego wariantu w naszej bazie po SKU
+                            db_opt = Product.query.filter_by(sku=opt_code).first()
+                            if db_opt:
+                                db_opt.sote_id = p_id          # ID rodzica z SOTE
+                                db_opt.sote_option_id = opt_id # Własne ID wariantu
+                                updated_options += 1
+            except Exception as e:
+                logger.error(f"Błąd przy pobieraniu opcji dla produktu SOTE {p_id}: {e}")
+                continue
+
+        db.session.commit()
+        flash(f"Zmapowano z SOTE! Produkty główne: {updated_main}, Warianty: {updated_options}.", "success")
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Błąd synchronizacji SOTE: {e}")
+        flash(f"Błąd komunikacji z SOTE SOAP: {e}", "error")
+
+    return redirect(url_for('project_dashboard', project_id=project.id))
+
 # TWORZENIE ADMINA - inicjalizacja tylko przy pierwszym uruchomieniu
 @app.route('/create-admin')
 def create_admin():
@@ -631,7 +784,8 @@ def create_admin():
 # --- REJESTRACJA WIDOKÓW W FLASK-ADMIN ---
 admin.add_view(UserModelView(User, db.session, name='Użytkownicy'))
 admin.add_view(ProjectModelView(Project, db.session, name='Projekty'))
-admin.add_view(ProductModelView(Product, db.session, name='Produkty'))
+# admin.add_view(ProductModelView(Product, db.session, name='Produkty'))
+admin.add_view(ProductAdminView(Product, db.session))
 
 if __name__ == '__main__':
     with app.app_context():
