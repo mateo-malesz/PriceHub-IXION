@@ -505,21 +505,73 @@ def api_project_products(project_id):
     if current_user not in project.users:
         return jsonify({"error": "Brak dostępu"}), 403
 
-    # Pobieramy wszystkie produkty z naszej Bazy Globalnej
     products = Product.query.all()
     
-    data = []
+    # 1. Separujemy produkty główne od wariantów
+    roots = []
+    variants_by_parent = {}
+    
     for p in products:
+        if p.sote_option_id is not None:
+            if p.sote_id not in variants_by_parent:
+                variants_by_parent[p.sote_id] = []
+            variants_by_parent[p.sote_id].append(p)
+        else:
+            roots.append(p)
+            
+    # 2. Sortujemy główne produkty alfabetycznie
+    roots.sort(key=lambda x: x.title.lower() if x.title else "")
+    
+    # 3. Budujemy ostateczną listę
+    data = []
+    for root in roots:
         data.append({
-            "sku": p.sku,
-            "title": p.title,
-            "currency": p.currency,
-            "producer": p.producer or "",
-            "supplier_sku": p.supplier_sku or "",
-            "status": "Zsynchronizowano", # Na razie wpisujemy na sztywno
-            "stock_quantity": 0 # Domyślnie 0, dopóki nie dodamy StoreCache
+            "sku": root.sku,
+            "title": root.title,
+            "producer": root.producer or "",
+            # POPRAWKA: Bezpieczne odwołanie do relacji Supplier
+            "supplier_name": root.supplier.name if root.supplier else "",
+            "supplier_sku": root.supplier_sku or "",
+            "status": "Zsynchronizowano",
+            "stock_quantity": root.stock,
+            "currency": root.currency or "PLN",
+            "vat_rate": root.vat_rate or 23,
+            "purchase_price_net_currency": root.purchase_price_net_currency,
+            "catalog_price_net_currency": root.catalog_price_net_currency,
+            "last_nexo_price_net": root.last_nexo_price_net,
+            "last_nexo_price_gross": root.last_nexo_price_gross,
+            "target_price_gross": root.sote_current_price_gross,
+            "margin_pln": None,
+            "margin_percent": None,
+            "is_variant": False,
+            "sote_id": root.sote_id
         })
         
+        if root.sote_id and root.sote_id in variants_by_parent:
+            variants = sorted(variants_by_parent[root.sote_id], key=lambda v: v.title if v.title else "")
+            for var in variants:
+                data.append({
+                    "sku": var.sku,
+                    "title": var.title,
+                    "producer": var.producer or "",
+                    # POPRAWKA: Bezpieczne odwołanie do relacji Supplier
+                    "supplier_name": var.supplier.name if var.supplier else "",
+                    "supplier_sku": var.supplier_sku or "",
+                    "status": "Wariant",
+                    "stock_quantity": var.stock,
+                    "currency": var.currency or "PLN",
+                    "vat_rate": var.vat_rate or 23,
+                    "purchase_price_net_currency": var.purchase_price_net_currency,
+                    "catalog_price_net_currency": var.catalog_price_net_currency,
+                    "last_nexo_price_net": var.last_nexo_price_net,
+                    "last_nexo_price_gross": var.last_nexo_price_gross,
+                    "target_price_gross": var.sote_current_price_gross,
+                    "margin_pln": None,
+                    "margin_percent": None,
+                    "is_variant": True,
+                    "sote_id": var.sote_id
+                })
+                
     return jsonify({"products": data})
 
 @app.route('/project/<int:project_id>/overview')

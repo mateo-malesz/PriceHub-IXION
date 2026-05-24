@@ -46,7 +46,20 @@
                 children: [
                     { field: "status", headerName: "Status", width: 110, filter: true, checkboxSelection: true },
                     { field: "sku", headerName: "SKU", width: 130, filter: true, sortable: true, pinned: 'left' },
-                    { field: "title", headerName: "Nazwa produktu", width: 250, filter: true, sortable: true },
+                    {
+                        field: "title",
+                        headerName: "Nazwa produktu",
+                        width: 300,
+                        filter: true,
+                        sortable: true,
+                        cellRenderer: function (params) {
+                            let val = params.value || ""; // Zabezpieczenie przed tekstem 'null'
+                            if (params.data && params.data.is_variant) {
+                                return `<span style="color: #6c757d;"><i class="bi bi-arrow-return-right"></i></span> ${val}`;
+                            }
+                            return `<strong>${val}</strong>`;
+                        }
+                    },
                     { field: "producer", headerName: "Producent", width: 130, filter: true },
                     { field: "supplier_name", headerName: "Nazwa dostawcy", width: 140, filter: true },
                     { field: "supplier_sku", headerName: "ID u dostawcy", width: 130, filter: true },
@@ -100,7 +113,7 @@
         // Opcje siatki AG Grid
         const gridOptions = {
             columnDefs: columnDefs,
-            rowData: [], // Na razie puste, zaraz połączymy to z backendem
+            rowData: [],
             defaultColDef: {
                 resizable: true,
                 sortable: true
@@ -108,9 +121,18 @@
             pagination: true,
             paginationPageSize: 50,
             paginationPageSizeSelector: [20, 50, 100],
+
+            // --- NOWE: Reguły klas CSS dla całych wierszy ---
+            rowClassRules: {
+                'row-variant': function (params) {
+                    return params.data && params.data.is_variant === true;
+                },
+                'row-parent': function (params) {
+                    return params.data && params.data.is_variant === false;
+                }
+            },
+
             onCellValueChanged: function (event) {
-                // Tutaj w przyszłości wepniemy automatyczny zapis AJAX do bazy,
-                // gdy analityk zmieni cenę bezpośrednio w komórce tabeli!
                 console.log('Zmieniono wartość:', event.data);
             }
         };
@@ -162,6 +184,27 @@
         background-color: #fff8f2 !important;
         font-weight: bold;
         color: #fd7e14;
+    }
+
+    /* Opcjonalnie: lekko szare tło dla całego wiersza wariantu */
+    .row-variant {
+        background-color: #fcfcfc !important;
+        font-size: 0.9em;
+        /* mniejsza czcionka dla opcji */
+        color: #495057;
+    }
+
+    /* Wcięcie kolumn SKU i TITLE dla wariantów, by stworzyć efekt "drzewa" */
+    .row-variant .ag-cell[col-id="sku"],
+    .row-variant .ag-cell[col-id="title"] {
+        padding-left: 35px !important;
+        border-left: 3px solid #dee2e6;
+        /* pionowa linia wskazująca powiązanie */
+    }
+
+    .row-parent {
+        border-top: 1px solid #ced4da !important;
+        /* mocniejsze oddzielenie rodzin produktów */
     }
 </style>
 {% endblock %}

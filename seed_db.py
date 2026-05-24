@@ -32,31 +32,28 @@ def seed_database():
                 title = str(item.get('name', '')).strip()
                 ean = str(item.get('ean', '')).strip() or None
                 
-                # POPRAWKA: SellAssist używa 'quantity' w formacie string np. "1.000"
                 try:
                     stock = int(float(item.get('quantity', 0.0)))
                 except (ValueError, TypeError):
                     stock = 0
                 
-                # Zbiorcze API nie zwraca producenta w tym pliku
-                producer = None
-                
+                # Inicjalizujemy pustym producentem i standardowym VATem
                 product = Product.query.filter_by(sku=sku).first()
                 if not product:
                     product = Product(
                         sku=sku, 
                         sellassist_id=sa_id, 
                         title=title,
-                        producer=producer,
+                        producer=None,
                         ean=ean,
-                        stock=stock
+                        stock=stock,
+                        vat_rate=23
                     )
                     db.session.add(product)
                     added += 1
                 else:
                     product.sellassist_id = sa_id
                     product.title = title
-                    product.producer = producer
                     product.ean = ean
                     product.stock = stock
                     
@@ -65,10 +62,22 @@ def seed_database():
         else:
             print(f"⚠️ Brak pliku {sa_products_path}")
 
-        # --- 2. SEEDOWANIE Z SOTE ---
+
+        # --- 2. ŁADOWANIE SŁOWNIKA PRODUCENTÓW SOTE ---
+        producers_path = f"{CACHE_DIR}/sote_producers.json"
+        producers_map = {}
+        if os.path.exists(producers_path):
+            with open(producers_path, "r", encoding="utf-8") as f:
+                producers_map = json.load(f)
+            print(f"\n📖 Wczytano słownik producentów ({len(producers_map)} wpisów).")
+        else:
+            print(f"\n⚠️ Brak pliku {producers_path}")
+
+
+        # --- 3. SEEDOWANIE Z SOTE (Ceny, Struktura, VAT, Producent) ---
         sote_path = f"{CACHE_DIR}/sote_dump.json"
         if os.path.exists(sote_path):
-            print("\n🔗 Mapowanie struktury wariantów oraz cen bieżących (SOTE)...")
+            print("\n🔗 Mapowanie SOTE (struktura, ceny, VAT, marki)...")
             with open(sote_path, "r", encoding="utf-8") as f:
                 sote_data = json.load(f)
                 
@@ -82,12 +91,28 @@ def seed_database():
                 sote_parent_id = main_info.get("id")
                 main_code = main_info.get("code")
                 
+                # Wyciągamy VAT (konwersja na czysty integer np. 23)
+                try:
+                    raw_vat = main_info.get("vat", 23)
+                    vat_rate = int(float(raw_vat))
+                except:
+                    vat_rate = 23
+                    
+                # Wyciągamy i mapujemy nazwę Producenta
+                producer_id = str(main_info.get("producer_id", ""))
+                producer_name = producers_map.get(producer_id)
+                
+                # 3a. Aktualizacja produktu głównego
                 if main_code:
                     db_main = Product.query.filter_by(sku=main_code).first()
                     if db_main:
                         db_main.sote_id = sote_parent_id
+                        db_main.vat_rate = vat_rate
+                        if producer_name:
+                            db_main.producer = producer_name
                         mapped_main += 1
                 
+                # 3b. Aktualizacja wariantów (dziedziczą VAT i producenta z rodzica!)
                 for opt in options:
                     opt_code = opt.get("code")
                     if opt_code:
@@ -95,6 +120,9 @@ def seed_database():
                         if db_opt:
                             db_opt.sote_id = sote_parent_id
                             db_opt.sote_option_id = opt.get("id")
+                            db_opt.vat_rate = vat_rate
+                            if producer_name:
+                                db_opt.producer = producer_name
                             
                             try:
                                 current_price = float(opt.get("price", 0.0))
@@ -105,11 +133,12 @@ def seed_database():
                             mapped_options += 1
                             
             db.session.commit()
-            print(f"✅ Zmapowano! Produkty nadrzędne: {mapped_main} | Warianty z cenami: {mapped_options}")
+            print(f"✅ Zmapowano! Produkty nadrzędne: {mapped_main} | Warianty: {mapped_options}")
         else:
             print(f"⚠️ Brak pliku {sote_path}")
 
-        # --- 3. SEEDOWANIE ZESTAWÓW (BUNDLES) ---
+
+        # --- 4. SEEDOWANIE ZESTAWÓW (BUNDLES) ---
         bundles_path = f"{CACHE_DIR}/sellassist_bundles.json"
         if os.path.exists(bundles_path):
             print("\n📦 Odtwarzanie relacji zestawów (Bundles)...")
@@ -121,7 +150,6 @@ def seed_database():
                 main_id = str(item.get('main_product_id'))
                 component_sku = item.get('product_symbol')
                 
-                # Ilość u nich też jest przekazywana jako string "1.000"
                 try:
                     quantity = float(item.get('quantity', 1.0))
                 except:
