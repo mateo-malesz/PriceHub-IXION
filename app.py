@@ -122,43 +122,59 @@ class MyModelView(ModelView):
         flash('Brak uprawnień administratora.', category='error')
         return redirect(url_for('home'))
 
-# class ProductModelView(MyModelView):
-#     # Aktualizujemy wyszukiwanie po nowych kolumnach
-#     column_searchable_list = ['title', 'sku', 'supplier_sku']
-    
-#     # Aktualizujemy filtry
-#     column_filters = ['producer', 'currency']
-    
-#     # Aktualizujemy listę wyświetlanych kolumn
-#     column_list = ['sku', 'title', 'producer', 'currency', 'vat_rate']
-    
-#     # Aktualizujemy sortowanie
-#     column_sortable_list = ['title', 'sku']
+class SupplierModelView(MyModelView):
+    column_list = ('id', 'name')
+    column_searchable_list = ('name',)
+    form_columns = ('name',)
+    column_labels = {'name': 'Nazwa Dostawcy'}
+
+# class ProductAdminView(ModelView):
+#     # 1. Kolumny widoczne w głównej tabeli (wybrałem najważniejsze, żeby nie zepsuć responsywności)
+#     column_list = (
+#         'sku', 'title', 'stock', 'sote_current_price_gross', 
+#         'producer', 'ean', 'sellassist_id', 'sote_id', 'sote_option_id',
+#         'purchase_price_net_currency', 'vat_rate'
+#     )
+
+#     # 2. Pola, po których można swobodnie wyszukiwać w pasku "Search"
+#     column_searchable_list = ('sku', 'title', 'ean', 'producer', 'sellassist_id')
+
+#     # 3. Zestaw filtrów w bocznym menu (pozwala np. wyfiltrować "stock > 0")
+#     column_filters = ('producer', 'stock', 'sote_id', 'vat_rate')
+
+#     # 4. Szybka edycja komórek bezpośrednio z widoku listy (bez wchodzenia w detale)
+#     column_editable_list = ['stock', 'sote_current_price_gross', 'purchase_price_net_currency']
+
+#     # 5. Domyślne sortowanie
+#     column_default_sort = 'sku'
+
+#     # 6. Paginacja
+#     page_size = 50
+
+#     # Ochrona widoku (dostosuj do swojego obecnego mechanizmu logowania w adminie)
+#     def is_accessible(self):
+#         from flask_login import current_user
+#         return current_user.is_authenticated
 
 class ProductAdminView(ModelView):
-    # 1. Kolumny widoczne w głównej tabeli (wybrałem najważniejsze, żeby nie zepsuć responsywności)
+    # 1. Dodajemy 'supplier' oraz 'supplier_sku' do listy kolumn
     column_list = (
         'sku', 'title', 'stock', 'sote_current_price_gross', 
-        'producer', 'ean', 'sellassist_id', 'sote_id', 'sote_option_id',
+        'producer', 'supplier', 'supplier_sku', 'ean', 'sellassist_id', 'sote_id', 'sote_option_id',
         'purchase_price_net_currency', 'vat_rate'
     )
 
-    # 2. Pola, po których można swobodnie wyszukiwać w pasku "Search"
-    column_searchable_list = ('sku', 'title', 'ean', 'producer', 'sellassist_id')
+    column_searchable_list = ('sku', 'title', 'ean', 'producer', 'sellassist_id', 'supplier_sku')
 
-    # 3. Zestaw filtrów w bocznym menu (pozwala np. wyfiltrować "stock > 0")
-    column_filters = ('producer', 'stock', 'sote_id', 'vat_rate')
+    # 3. Dodajemy filtrowanie po nazwie dostawcy (dzięki relacji w SQLAlchemy)
+    column_filters = ('producer', 'stock', 'sote_id', 'vat_rate', 'supplier.name')
 
-    # 4. Szybka edycja komórek bezpośrednio z widoku listy (bez wchodzenia w detale)
-    column_editable_list = ['stock', 'sote_current_price_gross', 'purchase_price_net_currency']
+    # 4. Pozwalamy na szybką edycję SKU dostawcy bezpośrednio z listy
+    column_editable_list = ['stock', 'sote_current_price_gross', 'purchase_price_net_currency', 'supplier_sku']
 
-    # 5. Domyślne sortowanie
     column_default_sort = 'sku'
-
-    # 6. Paginacja
     page_size = 50
 
-    # Ochrona widoku (dostosuj do swojego obecnego mechanizmu logowania w adminie)
     def is_accessible(self):
         from flask_login import current_user
         return current_user.is_authenticated
@@ -666,6 +682,61 @@ def sote_variants(project_id):
             
     return render_template('sote_variants.html', project=project, variants_dict=filtered_dict)
 
+@app.route('/suppliers', methods=['GET', 'POST'])
+@app.route('/project/<int:project_id>/suppliers', methods=['GET', 'POST'])
+@login_required
+def manage_suppliers(project_id=None):
+    project = None
+    # Jeśli w URL jest project_id, pobieramy projekt, żeby zasilić menu boczne
+    if project_id:
+        project = Project.query.get_or_404(project_id)
+        if current_user not in project.users:
+            flash('Brak dostępu.', 'error')
+            return redirect(url_for('projects'))
+
+    if request.method == 'POST':
+        name = request.form.get('name')
+        if not name:
+            flash('Nazwa dostawcy nie może być pusta.', 'error')
+        else:
+            existing = Supplier.query.filter_by(name=name).first()
+            if existing:
+                flash('Taki dostawca już istnieje.', 'error')
+            else:
+                # Zapis jest ZAWSZE globalny (nie przypisujemy dostawcy do projektu!)
+                new_supplier = Supplier(name=name)
+                db.session.add(new_supplier)
+                db.session.commit()
+                flash(f'Dodano dostawcę "{name}".', 'success')
+        
+        # Przekierowanie z zachowaniem kontekstu projektu
+        if project_id:
+            return redirect(url_for('manage_suppliers', project_id=project_id))
+        return redirect(url_for('manage_suppliers'))
+        
+    # Pobieranie dostawców jest globalne
+    suppliers = Supplier.query.order_by(Supplier.name).all()
+    return render_template('suppliers.html', suppliers=suppliers, project=project)
+
+
+@app.route('/suppliers/delete/<int:supplier_id>', methods=['POST'])
+@app.route('/project/<int:project_id>/suppliers/delete/<int:supplier_id>', methods=['POST'])
+@login_required
+def delete_supplier(supplier_id, project_id=None):
+    supplier = Supplier.query.get_or_404(supplier_id)
+    try:
+        db.session.delete(supplier)
+        db.session.commit()
+        flash(f'Usunięto dostawcę "{supplier.name}".', 'success')
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Błąd podczas usuwania dostawcy {supplier_id}: {str(e)}")
+        flash('Nie można usunąć dostawcy. Upewnij się, że nie jest przypisany do żadnych produktów.', 'error')
+        
+    if project_id:
+        return redirect(url_for('manage_suppliers', project_id=project_id))
+    return redirect(url_for('manage_suppliers'))
+
 # --- SYNCHRONIZACJA ZESTAWÓW (Z SellAssist do SQLite) ---
 @app.route('/project/<int:project_id>/sync-bundles')
 @login_required
@@ -836,7 +907,7 @@ def create_admin():
 # --- REJESTRACJA WIDOKÓW W FLASK-ADMIN ---
 admin.add_view(UserModelView(User, db.session, name='Użytkownicy'))
 admin.add_view(ProjectModelView(Project, db.session, name='Projekty'))
-# admin.add_view(ProductModelView(Product, db.session, name='Produkty'))
+admin.add_view(SupplierModelView(Supplier, db.session, name='Dostawcy'))
 admin.add_view(ProductAdminView(Product, db.session))
 
 if __name__ == '__main__':
