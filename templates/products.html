@@ -24,14 +24,49 @@
                 class="btn btn-outline-info fw-bold text-dark">
                 <i class="bi bi-diagram-3 me-2"></i>Mapuj SOTE
             </a>
-            <a href="#" class="btn btn-primary fw-bold px-4">
+            <button type="button" class="btn btn-primary fw-bold px-4" data-bs-toggle="modal"
+                data-bs-target="#importNexoModal">
                 <i class="bi bi-file-earmark-excel me-2"></i>Importuj Koszty
-            </a>
+            </button>
         </div>
     </div>
     <div class="card shadow-sm border-0">
         <div class="card-body p-0">
             <div id="pricingGrid" class="ag-theme-alpine" style="height: 70vh; width: 100%;"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="importNexoModal" tabindex="-1" aria-labelledby="importNexoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <form action="{{ url_for('import_nexo', project_id=project.id) }}" method="POST"
+                enctype="multipart/form-data">
+                <div class="modal-header bg-primary text-white">
+                    <h5 class="modal-title" id="importNexoModalLabel">
+                        <i class="bi bi-file-earmark-excel me-2"></i>Wgraj koszty zakupu z Nexo
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"
+                        aria-label="Close"></button>
+                </div>
+                <div class="modal-body py-4">
+                    <p class="text-muted small">
+                        Wgraj plik wygenerowany z systemu <strong>Subiekt Nexo</strong>.
+                        Skrypt wymaga pliku <code>.xlsx</code> lub <code>.xls</code> posiadającego kolumny:
+                        <em>Symbol, Netto - Mateusz, Netto, Brutto</em>.
+                    </p>
+                    <div class="mb-3">
+                        <label for="excelFile" class="form-label fw-bold">Plik z cennikiem</label>
+                        <input class="form-control" type="file" id="excelFile" name="file" accept=".xls,.xlsx" required>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Anuluj</button>
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-cloud-arrow-up me-2"></i>Rozpocznij import
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>

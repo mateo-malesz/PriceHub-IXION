@@ -10,7 +10,7 @@ from flask_apscheduler import APScheduler
 from datetime import datetime, date, timezone
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
-# from sote_integration import fetch_sales_for_date
+import pandas as pd
 from datetime import timedelta
 import requests
 import os
@@ -861,6 +861,97 @@ def sync_sote_options(project_id):
         db.session.rollback()
         logger.error(f"Błąd synchronizacji SOTE: {e}")
         flash(f"Błąd komunikacji z SOTE SOAP: {e}", "error")
+
+    return redirect(url_for('project_dashboard', project_id=project.id))
+
+@app.route('/project/<int:project_id>/import-nexo', methods=['POST'])
+@login_required
+def import_nexo(project_id):
+    project = Project.query.get_or_404(project_id)
+    if current_user not in project.users:
+        flash('Brak dostępu.', 'error')
+        return redirect(url_for('projects'))
+
+    if 'file' not in request.files:
+        flash('Nie wybrano pliku.', 'error')
+        return redirect(url_for('project_dashboard', project_id=project.id))
+
+    file = request.files['file']
+    if file.filename == '':
+        flash('Nie wybrano pliku.', 'error')
+        return redirect(url_for('project_dashboard', project_id=project.id))
+
+    try:
+        # Odczyt pliku Excel (działa dla .xls i .xlsx)
+        df = pd.read_excel(file)
+        
+        updated_count = 0
+        not_found_count = 0
+
+        for index, row in df.iterrows():
+            # Zabezpieczenie przed pustymi wierszami
+            if pd.isna(row.get('Symbol')):
+                continue
+                
+            sku = str(row['Symbol']).strip()
+            
+            # Wyszukujemy produkt w naszej bazie
+            product = Product.query.filter_by(sku=sku).first()
+            
+            if product:
+                # Pobieramy Twój koszt (Netto - Mateusz)
+                netto_mateusz = row.get('Netto - Mateusz')
+                if pd.notna(netto_mateusz):
+                    try:
+                        # Pandas sam konwertuje typy, ale dla bezpieczeństwa
+                        product.purchase_price_net_currency = float(str(netto_mateusz).replace(',', '.'))
+                    except ValueError:
+                        pass
+                
+                # Pobieramy ceny katalogowe Nexo
+                netto_catalog = row.get('Netto')
+                if pd.notna(netto_catalog):
+                    try:
+                        product.last_nexo_price_net = float(str(netto_catalog).replace(',', '.'))
+                    except ValueError:
+                        pass
+                        
+                brutto_catalog = row.get('Brutto')
+                if pd.notna(brutto_catalog):
+                    try:
+                        product.last_nexo_price_gross = float(str(brutto_catalog).replace(',', '.'))
+                    except ValueError:
+                        pass
+
+                # Wyciąganie waluty (np. z "15,55 PLN" -> "PLN")
+                brutto_waluta = row.get('Brutto - Mateusz Waluta')
+                if pd.notna(brutto_waluta):
+                    val_str = str(brutto_waluta).strip()
+                    # Pobieramy ostatnie słowo jako walutę (najczęściej PLN, EUR itp.)
+                    currency = val_str.split()[-1] 
+                    if currency.isalpha(): # Upewniamy się, że to np. PLN
+                        product.currency = currency
+
+                # Uzupełnienie EAN, jeśli go nie ma
+                ean = row.get('Kod kreskowy')
+                if pd.notna(ean) and not product.ean:
+                    # Konwertujemy na int, potem str by usunąć format .0 jeśli pandas zczyta jako float
+                    try:
+                        product.ean = str(int(float(ean)))
+                    except:
+                        product.ean = str(ean).strip()
+
+                updated_count += 1
+            else:
+                not_found_count += 1
+
+        db.session.commit()
+        flash(f'Import zakończony! Zaktualizowano koszty dla {updated_count} produktów. Nie znaleziono {not_found_count} SKU w bazie.', 'success')
+
+    except Exception as e:
+        db.session.rollback()
+        logger.error(f"Błąd importu Nexo: {str(e)}")
+        flash(f'Błąd podczas przetwarzania pliku Excel: {str(e)}', 'error')
 
     return redirect(url_for('project_dashboard', project_id=project.id))
 
