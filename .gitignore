@@ -27,5 +27,8 @@ backup/
 demo/
 API SOTE/
 
+#Pliki
+*.xlsx
+
 # Baza
 *.db*
