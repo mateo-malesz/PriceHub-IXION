@@ -157,42 +157,58 @@ def cache_sote():
         sote_dump = []
         
         for idx, p in enumerate(all_products):
-            p_active = p.get('active')
-            
-            if p_active in [False, 0, '0', 'false', 'False', None]:
-                continue 
-                
             p_id = p.get('id')
             p_code = p.get('code')
+            p_active = p.get('active')
             
+            # Bezpieczne przypisanie aktywności (True/False)
+            is_active = False if p_active in [False, 0, '0', 'false', 'False', None] else True
+            
+            # Pobieramy starą cenę brutto, a jak nie ma, to zwykłą starą cenę
+            try:
+                old_price = float(p.get('old_price_brutto') or p.get('old_price') or 0.0)
+            except:
+                old_price = 0.0
+
+            try:
+                current_price = float(p.get('price_brutto') or p.get('price') or 0.0)
+            except:
+                current_price = 0.0    
+
             slim_main = {
                 "id": p_id,
                 "code": p_code,
                 "name": p.get('name'),
                 "vat": p.get('vat'),
-                "producer_id": p.get('producer_id')
+                "producer_id": p.get('producer_id'),
+                "is_active": is_active,
+                "price": current_price,
+                "old_price": old_price
             }
             
             p_dict = {"main": slim_main, "options": []}
             
-            # --- TWOJA OPTYMALIZACJA: Tniemy tekst lokalnie ---
             product_options_raw = p.get('product_options')
-            
             if isinstance(product_options_raw, str) and '\n' in product_options_raw:
                 lines = product_options_raw.split('\n')
                 for line in lines:
                     if '{' in line and '"kod"' in line and '"id"' in line:
                         start_idx = line.find('{')
                         end_idx = line.rfind('}') + 1
-                        
                         if start_idx != -1 and end_idx != -1:
                             try:
                                 opt_data = json.loads(line[start_idx:end_idx])
                                 if opt_data.get('kod') and opt_data.get('id'):
+                                    try:
+                                        opt_old_price = float(opt_data.get('stara_cena') or 0.0)
+                                    except:
+                                        opt_old_price = 0.0
+                                        
                                     p_dict["options"].append({
                                         "id": opt_data.get('id'),
                                         "code": opt_data.get('kod'),
-                                        "price": opt_data.get('cena', 0.0)
+                                        "price": opt_data.get('cena', 0.0),
+                                        "old_price": opt_old_price
                                     })
                             except:
                                 pass
@@ -211,6 +227,6 @@ if __name__ == "__main__":
     print("========================================")
     print(" GENERATOR OFFLINE CACHE - PRICEHUB API")
     print("========================================")
-    cache_sellassist()
+    # cache_sellassist()
     cache_sote()
     print("\n🎉 WSZYSTKO ZAKOŃCZONE! Dane bezpiecznie leżą w folderze /api_cache")

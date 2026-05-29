@@ -44,7 +44,22 @@
             {
                 headerName: "Dane podstawowe",
                 children: [
-                    { field: "status", headerName: "Status", width: 110, filter: true, checkboxSelection: true },
+                    {
+                        field: "status",
+                        headerName: "Status SOTE",
+                        width: 130,
+                        filter: true,
+                        cellRenderer: function (params) {
+                            if (!params.value) return '';
+                            if (params.value === "Aktywny") {
+                                return `<span class="badge bg-success-subtle text-success border border-success-subtle px-2 py-1 rounded">🟢 Aktywny</span>`;
+                            } else if (params.value === "Nieaktywny") {
+                                return `<span class="badge bg-danger-subtle text-danger border border-danger-subtle px-2 py-1 rounded">🔴 Nieaktywny</span>`;
+                            } else {
+                                return `<span class="badge bg-secondary-subtle text-secondary border border-secondary-subtle px-2 py-1 rounded">⚪ Brak w SOTE</span>`;
+                            }
+                        }
+                    },
                     { field: "sku", headerName: "SKU", width: 130, filter: true, sortable: true, pinned: 'left' },
                     {
                         field: "title",

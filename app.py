@@ -10,7 +10,7 @@ from flask_apscheduler import APScheduler
 from datetime import datetime, date, timezone
 from flask_admin import Admin, AdminIndexView, expose
 from flask_admin.contrib.sqla import ModelView
-from sote_integration import fetch_sales_for_date
+# from sote_integration import fetch_sales_for_date
 from datetime import timedelta
 import requests
 import os
@@ -128,34 +128,6 @@ class SupplierModelView(MyModelView):
     form_columns = ('name',)
     column_labels = {'name': 'Nazwa Dostawcy'}
 
-# class ProductAdminView(ModelView):
-#     # 1. Kolumny widoczne w głównej tabeli (wybrałem najważniejsze, żeby nie zepsuć responsywności)
-#     column_list = (
-#         'sku', 'title', 'stock', 'sote_current_price_gross', 
-#         'producer', 'ean', 'sellassist_id', 'sote_id', 'sote_option_id',
-#         'purchase_price_net_currency', 'vat_rate'
-#     )
-
-#     # 2. Pola, po których można swobodnie wyszukiwać w pasku "Search"
-#     column_searchable_list = ('sku', 'title', 'ean', 'producer', 'sellassist_id')
-
-#     # 3. Zestaw filtrów w bocznym menu (pozwala np. wyfiltrować "stock > 0")
-#     column_filters = ('producer', 'stock', 'sote_id', 'vat_rate')
-
-#     # 4. Szybka edycja komórek bezpośrednio z widoku listy (bez wchodzenia w detale)
-#     column_editable_list = ['stock', 'sote_current_price_gross', 'purchase_price_net_currency']
-
-#     # 5. Domyślne sortowanie
-#     column_default_sort = 'sku'
-
-#     # 6. Paginacja
-#     page_size = 50
-
-#     # Ochrona widoku (dostosuj do swojego obecnego mechanizmu logowania w adminie)
-#     def is_accessible(self):
-#         from flask_login import current_user
-#         return current_user.is_authenticated
-
 class ProductAdminView(ModelView):
     # 1. Dodajemy 'supplier' oraz 'supplier_sku' do listy kolumn
     column_list = (
@@ -260,6 +232,8 @@ class Product(db.Model):
     sellassist_id = db.Column(db.String(64), unique=True, nullable=True)
     sote_id = db.Column(db.Integer, nullable=True)        # ID produktu nadrzędnego
     sote_option_id = db.Column(db.Integer, nullable=True) # ID konkretnego wariantu (jeśli istnieje)
+    sote_is_active = db.Column(db.Boolean, default=True) # Czy produkt jest aktywny w sklepie
+    sote_price_strike = db.Column(db.Float, nullable=True) # Cena przekreślona z SOTE
 
     title = db.Column(db.String(200), nullable=False)
     producer = db.Column(db.String(128), nullable=True)
@@ -550,6 +524,8 @@ def api_project_products(project_id):
             "supplier_sku": root.supplier_sku or "",
             "status": "Zsynchronizowano",
             "stock_quantity": root.stock,
+            "target_price_strike": root.sote_price_strike,
+            "is_active": root.sote_is_active,
             "currency": root.currency or "PLN",
             "vat_rate": root.vat_rate or 23,
             "purchase_price_net_currency": root.purchase_price_net_currency,
@@ -560,6 +536,7 @@ def api_project_products(project_id):
             "margin_pln": None,
             "margin_percent": None,
             "is_variant": False,
+            "status": "Aktywny" if root.sote_is_active else ("Nieaktywny" if root.sote_id else "Brak w SOTE"),
             "sote_id": root.sote_id
         })
         
@@ -585,6 +562,7 @@ def api_project_products(project_id):
                     "margin_pln": None,
                     "margin_percent": None,
                     "is_variant": True,
+                    "status": "Aktywny" if var.sote_is_active else ("Nieaktywny" if var.sote_id else "Brak w SOTE"),
                     "sote_id": var.sote_id
                 })
                 
